@@ -1,6 +1,6 @@
 'use strict';
 
-var bitcore = require('bitcore-lib');
+var astracore = require('astracore-lib');
 var Inventory = require('../inventory');
 
 function builder(options) {
@@ -12,13 +12,13 @@ function builder(options) {
   }
 
   if (!options.network) {
-    options.network = bitcore.Networks.defaultNetwork;
+    options.network = astracore.Networks.defaultNetwork;
   }
 
-  options.Block = options.Block || bitcore.Block;
-  options.BlockHeader = options.BlockHeader || bitcore.BlockHeader;
-  options.Transaction = options.Transaction || bitcore.Transaction;
-  options.MerkleBlock = options.MerkleBlock || bitcore.MerkleBlock;
+  options.Block = options.Block || astracore.Block;
+  options.BlockHeader = options.BlockHeader || astracore.BlockHeader;
+  options.Transaction = options.Transaction || astracore.Transaction;
+  options.MerkleBlock = options.MerkleBlock || astracore.MerkleBlock;
   options.protocolVersion = options.protocolVersion || 70001;
 
   var exported = {
@@ -26,17 +26,13 @@ function builder(options) {
       Block: options.Block,
       BlockHeader: options.BlockHeader,
       Transaction: options.Transaction,
-      MerkleBlock: options.MerkleBlock
+      MerkleBlock: options.MerkleBlock,
     },
     defaults: {
       protocolVersion: options.protocolVersion,
-      network: options.network
+      network: options.network,
     },
-    inventoryCommands: [
-      'getdata',
-      'inv',
-      'notfound'
-    ],
+    inventoryCommands: ['getdata', 'inv', 'notfound'],
     commandsMap: {
       version: 'Version',
       verack: 'VerAck',
@@ -58,31 +54,30 @@ function builder(options) {
       getblocks: 'GetBlocks',
       getheaders: 'GetHeaders',
       mempool: 'MemPool',
-      getaddr: 'GetAddr'
+      getaddr: 'GetAddr',
     },
-    commands: {}
+    commands: {},
   };
 
-  exported.add = function(key, Command) {
-    exported.commands[key] = function(obj) {
+  exported.add = function (key, Command) {
+    exported.commands[key] = function (obj) {
       return new Command(obj, options);
     };
 
     exported.commands[key]._constructor = Command;
 
-    exported.commands[key].fromBuffer = function(buffer) {
+    exported.commands[key].fromBuffer = function (buffer) {
       var message = exported.commands[key]();
       message.setPayload(buffer);
       return message;
     };
   };
 
-  Object.keys(exported.commandsMap).forEach(function(key) {
+  Object.keys(exported.commandsMap).forEach(function (key) {
     exported.add(key, require('./commands/' + key));
   });
 
-  exported.inventoryCommands.forEach(function(command) {
-
+  exported.inventoryCommands.forEach(function (command) {
     // add forTransaction methods
     exported.commands[command].forTransaction = function forTransaction(hash) {
       return new exported.commands[command]([Inventory.forTransaction(hash)]);
@@ -97,11 +92,9 @@ function builder(options) {
     exported.commands[command].forFilteredBlock = function forFilteredBlock(hash) {
       return new exported.commands[command]([Inventory.forFilteredBlock(hash)]);
     };
-
   });
 
   return exported;
-
 }
 
 module.exports = builder;

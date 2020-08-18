@@ -23,4 +23,4 @@ src/dist
 build/
 build-test/
 config.json
-*bitcore.config.*
+*astracore.config.*

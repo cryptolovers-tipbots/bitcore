@@ -2,8 +2,8 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
-var BufferUtil = bitcore.util.buffer;
+var astracore = require('astracore-lib-cash');
+var BufferUtil = astracore.util.buffer;
 
 /**
  * Transports a generic key-value map that holds the configuration and version parameters.
@@ -18,9 +18,9 @@ function XversionMessage(arg, options) {
 }
 inherits(XversionMessage, Message);
 
-XversionMessage.prototype.setPayload = function() {};
+XversionMessage.prototype.setPayload = function () {};
 
-XversionMessage.prototype.getPayload = function() {
+XversionMessage.prototype.getPayload = function () {
   return BufferUtil.EMPTY_BUFFER;
 };
 

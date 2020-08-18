@@ -12,13 +12,13 @@ const Errors = require('../../errors/errordefinitions');
 
 export class EthChain implements IChain {
   /**
-   * Converts Bitcore Balance Response.
-   * @param {Object} bitcoreBalance - { unconfirmed, confirmed, balance }
+   * Converts Astracore Balance Response.
+   * @param {Object} astracoreBalance - { unconfirmed, confirmed, balance }
    * @param {Number} locked - Sum of txp.amount
    * @returns {Object} balance - Total amount & locked amount.
    */
-  private convertBitcoreBalance(bitcoreBalance, locked) {
-    const { unconfirmed, confirmed, balance } = bitcoreBalance;
+  private convertAstracoreBalance(astracoreBalance, locked) {
+    const { unconfirmed, confirmed, balance } = astracoreBalance;
     // we ASUME all locked as confirmed, for ETH.
     const convertedBalance = {
       totalAmount: balance,
@@ -27,7 +27,7 @@ export class EthChain implements IChain {
       lockedConfirmedAmount: locked,
       availableAmount: balance - locked,
       availableConfirmedAmount: confirmed - locked,
-      byAddress: []
+      byAddress: [],
     };
     return convertedBalance;
   }
@@ -60,7 +60,7 @@ export class EthChain implements IChain {
         if (err) return cb(err);
         // Do not lock eth multisig amount
         const lockedSum = opts.multisigContractAddress ? 0 : _.sumBy(txps, 'amount') || 0;
-        const convertedBalance = this.convertBitcoreBalance(balance, lockedSum);
+        const convertedBalance = this.convertAstracoreBalance(balance, lockedSum);
         server.storage.fetchAddresses(server.walletId, (err, addresses: IAddress[]) => {
           if (err) return cb(err);
           if (addresses.length > 0) {
@@ -68,8 +68,8 @@ export class EthChain implements IChain {
               {
                 address: addresses[0].address,
                 path: addresses[0].path,
-                amount: convertedBalance.totalAmount
-              }
+                amount: convertedBalance.totalAmount,
+              },
             ];
             convertedBalance.byAddress = byAddress;
           }
@@ -89,7 +89,7 @@ export class EthChain implements IChain {
         amountBelowFee: 0,
         amount: availableAmount - fee,
         feePerKb: opts.feePerKb,
-        fee
+        fee,
       });
     });
   }
@@ -112,7 +112,7 @@ export class EthChain implements IChain {
   checkDust(output, opts) {}
 
   getFee(server, wallet, opts) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       server._getFeePerKb(wallet, opts, async (err, inFeePerKb) => {
         let feePerKb = inFeePerKb;
         let gasPrice = inFeePerKb;
@@ -128,7 +128,7 @@ export class EthChain implements IChain {
               to: opts.tokenAddress || opts.multisigContractAddress || output.toAddress,
               value: opts.tokenAddress || opts.multisigContractAddress ? 0 : output.amount,
               data: output.data,
-              gasPrice
+              gasPrice,
             });
             output.gasLimit = inGasLimit || Defaults.DEFAULT_GAS_LIMIT;
           } catch (err) {
@@ -147,17 +147,17 @@ export class EthChain implements IChain {
     });
   }
 
-  getBitcoreTx(txp, opts = { signed: true }) {
+  getAstracoreTx(txp, opts = { signed: true }) {
     const { data, outputs, payProUrl, tokenAddress, multisigContractAddress } = txp;
     const isERC20 = tokenAddress && !payProUrl;
     const isETHMULTISIG = multisigContractAddress && !payProUrl;
     const chain = isERC20 ? 'ERC20' : isETHMULTISIG ? 'ETHMULTISIG' : 'ETH';
-    const recipients = outputs.map(output => {
+    const recipients = outputs.map((output) => {
       return {
         amount: output.amount,
         address: output.toAddress,
         data: output.data,
-        gasLimit: output.gasLimit
+        gasLimit: output.gasLimit,
       };
     });
     // Backwards compatibility BWC <= 8.9.0
@@ -171,7 +171,7 @@ export class EthChain implements IChain {
         ...recipients[index],
         chain,
         nonce: Number(txp.nonce) + Number(index),
-        recipients: [recipients[index]]
+        recipients: [recipients[index]],
       });
       unsignedTxs.push(rawTx);
     }
@@ -187,13 +187,13 @@ export class EthChain implements IChain {
       getFee: () => {
         return txp.fee;
       },
-      getChangeOutput: () => null
+      getChangeOutput: () => null,
     };
 
     if (opts.signed) {
       const sigs = txp.getCurrentSignatures();
-      sigs.forEach(x => {
-        this.addSignaturesToBitcoreTx(tx, txp.inputs, txp.inputPaths, x.signatures, x.xpub);
+      sigs.forEach((x) => {
+        this.addSignaturesToAstracoreTx(tx, txp.inputs, txp.inputPaths, x.signatures, x.xpub);
       });
     }
 
@@ -206,9 +206,9 @@ export class EthChain implements IChain {
 
   checkTx(txp) {
     try {
-      const tx = this.getBitcoreTx(txp);
+      const tx = this.getAstracoreTx(txp);
     } catch (ex) {
-      logger.debug('Error building Bitcore transaction', ex);
+      logger.debug('Error building Astracore transaction', ex);
       return ex;
     }
 
@@ -281,7 +281,7 @@ export class EthChain implements IChain {
     if (network != 'livenet') address.address += ':' + network;
   }
 
-  addSignaturesToBitcoreTx(tx, inputs, inputPaths, signatures, xpub) {
+  addSignaturesToAstracoreTx(tx, inputs, inputPaths, signatures, xpub) {
     if (signatures.length === 0) {
       throw new Error('Signatures Required');
     }
@@ -293,11 +293,11 @@ export class EthChain implements IChain {
       const signed = Transactions.applySignature({
         chain,
         tx: unsignedTxs[index],
-        signature: signatures[index]
+        signature: signatures[index],
       });
       signedTxs.push(signed);
 
-      // bitcore users id for txid...
+      // astracore users id for txid...
       tx.id = Transactions.getHash({ tx: signed, chain });
     }
     tx.uncheckedSerialize = () => signedTxs;
@@ -343,8 +343,8 @@ export class EthChain implements IChain {
         address,
         amount,
         tokenAddress,
-        multisigContractAddress
-      }
+        multisigContractAddress,
+      },
     };
   }
 }

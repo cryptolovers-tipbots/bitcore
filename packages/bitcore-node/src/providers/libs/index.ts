@@ -1,9 +1,9 @@
 class LibProvider {
   libs = {
     BTC: {
-      lib: require('bitcore-lib'),
-      p2p: require('bitcore-p2p')
-    }
+      lib: require('astracore-lib'),
+      p2p: require('astracore-p2p'),
+    },
   };
 
   register(chain: string, lib: string, p2p: string) {

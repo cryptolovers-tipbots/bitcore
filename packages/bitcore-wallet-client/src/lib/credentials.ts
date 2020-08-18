@@ -1,12 +1,12 @@
 'use strict';
 
-import { BitcoreLib } from 'crypto-wallet-core';
+import { AstracoreLib } from 'crypto-wallet-core';
 
 import { Constants, Utils } from './common';
 const $ = require('preconditions').singleton();
 const _ = require('lodash');
 
-const Bitcore = BitcoreLib;
+const Astracore = AstracoreLib;
 const sjcl = require('sjcl');
 
 export class Credentials {
@@ -44,7 +44,7 @@ export class Credentials {
     'rootPath', // this is only for information
     'keyId', // this is only for information
     'token', // this is for a ERC20 token
-    'multisigEthInfo' // this is for a MULTISIG eth wallet
+    'multisigEthInfo', // this is for a MULTISIG eth wallet
   ];
   version: number;
   account: number;
@@ -112,20 +112,20 @@ export class Credentials {
     }
     x.requestPrivKey = opts.requestPrivKey;
 
-    const priv = Bitcore.PrivateKey(x.requestPrivKey);
+    const priv = Astracore.PrivateKey(x.requestPrivKey);
     x.requestPubKey = priv.toPublicKey().toString();
 
     const prefix = 'personalKey';
-    const entropySource = Bitcore.crypto.Hash.sha256(priv.toBuffer()).toString('hex');
+    const entropySource = Astracore.crypto.Hash.sha256(priv.toBuffer()).toString('hex');
     const b = Buffer.from(entropySource, 'hex');
-    const b2 = Bitcore.crypto.Hash.sha256hmac(b, Buffer.from(prefix));
+    const b2 = Astracore.crypto.Hash.sha256hmac(b, Buffer.from(prefix));
     x.personalEncryptingKey = b2.slice(0, 16).toString('base64');
     x.copayerId = Utils.xPubToCopayerId(x.coin, x.xPubKey);
     x.publicKeyRing = [
       {
         xPubKey: x.xPubKey,
-        requestPubKey: x.requestPubKey
-      }
+        requestPubKey: x.requestPubKey,
+      },
     ];
 
     return x;
@@ -216,7 +216,7 @@ export class Credentials {
       throw new Error('Bad credentials version');
     }
 
-    _.each(Credentials.FIELDS, function(k) {
+    _.each(Credentials.FIELDS, function (k) {
       x[k] = obj[k];
     });
 
@@ -236,7 +236,7 @@ export class Credentials {
     var self = this;
 
     var x = {};
-    _.each(Credentials.FIELDS, function(k) {
+    _.each(Credentials.FIELDS, function (k) {
       x[k] = self[k];
     });
     return x;
@@ -271,8 +271,8 @@ export class Credentials {
       this.addPublicKeyRing([
         {
           xPubKey: this.xPubKey,
-          requestPubKey: this.requestPubKey
-        }
+          requestPubKey: this.requestPubKey,
+        },
       ]);
     }
   }

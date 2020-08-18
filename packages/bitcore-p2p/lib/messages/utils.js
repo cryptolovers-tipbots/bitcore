@@ -1,13 +1,13 @@
 'use strict';
 
-var bitcore = require('bitcore-lib');
-var BufferUtil = bitcore.util.buffer;
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
+var astracore = require('astracore-lib');
+var BufferUtil = astracore.util.buffer;
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
 var utils;
 
 module.exports = utils = {
-  checkInventory: function(arg) {
+  checkInventory: function (arg) {
     $.checkArgument(
       _.isUndefined(arg) ||
         (Array.isArray(arg) && arg.length === 0) ||
@@ -16,15 +16,15 @@ module.exports = utils = {
     );
   },
   checkFinished: function checkFinished(parser) {
-    if(!parser.finished()) {
+    if (!parser.finished()) {
       throw new Error('Data still available after parsing');
     }
   },
   getNonce: function getNonce() {
-    return bitcore.crypto.Random.getRandomBuffer(8);
+    return astracore.crypto.Random.getRandomBuffer(8);
   },
   writeIP: function writeIP(ip, bw) {
-    var words = ip.v6.split(':').map(function(s) {
+    var words = ip.v6.split(':').map(function (s) {
       return new Buffer(s, 'hex');
     });
     for (var i = 0; i < words.length; i++) {
@@ -45,7 +45,7 @@ module.exports = utils = {
   },
   writeInventory: function writeInventory(inventory, bw) {
     bw.writeVarintNum(inventory.length);
-    inventory.forEach(function(value) {
+    inventory.forEach(function (value) {
       bw.writeUInt32LE(value.type);
       bw.write(value.hash);
     });
@@ -65,7 +65,7 @@ module.exports = utils = {
     ipv4 = ipv4.join('.');
     return {
       v6: ipv6,
-      v4: ipv4
+      v4: ipv4,
     };
   },
   parseAddr: function parseAddr(parser) {
@@ -75,7 +75,7 @@ module.exports = utils = {
     return {
       services: services,
       ip: ip,
-      port: port
+      port: port,
     };
   },
   sanitizeStartStop: function sanitizeStartStop(obj) {
@@ -85,7 +85,7 @@ module.exports = utils = {
     var starts = obj.starts;
     var stop = obj.stop;
     if (starts) {
-      starts = starts.map(function(hash) {
+      starts = starts.map(function (hash) {
         if (_.isString(hash)) {
           return BufferUtil.reverse(new Buffer(hash, 'hex'));
         } else {
@@ -113,5 +113,5 @@ module.exports = utils = {
     obj.stop = stop;
 
     return obj;
-  }
+  },
 };

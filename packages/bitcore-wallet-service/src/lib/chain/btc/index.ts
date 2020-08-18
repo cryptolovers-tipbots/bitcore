@@ -1,5 +1,5 @@
 import * as async from 'async';
-import { BitcoreLib } from 'crypto-wallet-core';
+import { AstracoreLib } from 'crypto-wallet-core';
 import _ from 'lodash';
 import { IChain, INotificationData } from '..';
 import { ClientError } from '../../errors/clienterror';
@@ -16,7 +16,7 @@ const Errors = require('../../errors/errordefinitions');
 export class BtcChain implements IChain {
   protected feeSafetyMargin: number;
 
-  constructor(private bitcoreLib = BitcoreLib) {
+  constructor(private astracoreLib = AstracoreLib) {
     this.feeSafetyMargin = 0.02;
   }
 
@@ -24,14 +24,14 @@ export class BtcChain implements IChain {
     server.getUtxosForCurrentWallet(
       {
         coin: opts.coin,
-        addresses: opts.addresses
+        addresses: opts.addresses,
       },
       (err, utxos) => {
         if (err) return cb(err);
 
         const balance = {
           ...this.totalizeUtxos(utxos),
-          byAddress: []
+          byAddress: [],
         };
 
         // Compute balance by address
@@ -40,11 +40,11 @@ export class BtcChain implements IChain {
           byAddress[key] = {
             address: key,
             path: value.path,
-            amount: 0
+            amount: 0,
           };
         });
 
-        _.each(utxos, utxo => {
+        _.each(utxos, (utxo) => {
           byAddress[utxo.address].amount += utxo.satoshis;
         });
 
@@ -70,14 +70,14 @@ export class BtcChain implements IChain {
         utxosBelowFee: 0,
         amountBelowFee: 0,
         utxosAboveMaxSize: 0,
-        amountAboveMaxSize: 0
+        amountAboveMaxSize: 0,
       };
 
       let inputs = _.reject(utxos, 'locked');
       if (!!opts.excludeUnconfirmedUtxos) {
         inputs = _.filter(inputs, 'confirmations');
       }
-      inputs = _.sortBy(inputs, input => {
+      inputs = _.sortBy(inputs, (input) => {
         return -input.satoshis;
       });
 
@@ -94,14 +94,14 @@ export class BtcChain implements IChain {
           network: wallet.network,
           walletM: wallet.m,
           walletN: wallet.n,
-          feePerKb
+          feePerKb,
         });
 
         const baseTxpSize = this.getEstimatedSize(txp);
         const sizePerInput = this.getEstimatedSizeForSingleInput(txp);
         const feePerInput = (sizePerInput * txp.feePerKb) / 1000;
 
-        const partitionedByAmount = _.partition(inputs, input => {
+        const partitionedByAmount = _.partition(inputs, (input) => {
           return input.satoshis > feePerInput;
         });
 
@@ -140,7 +140,7 @@ export class BtcChain implements IChain {
   }
 
   getDustAmountValue() {
-    return this.bitcoreLib.Transaction.DUST_AMOUNT;
+    return this.astracoreLib.Transaction.DUST_AMOUNT;
   }
 
   getTransactionCount() {
@@ -182,7 +182,7 @@ export class BtcChain implements IChain {
   }
 
   checkDust(output) {
-    const dustThreshold = Math.max(Defaults.MIN_OUTPUT_AMOUNT, this.bitcoreLib.Transaction.DUST_AMOUNT);
+    const dustThreshold = Math.max(Defaults.MIN_OUTPUT_AMOUNT, this.astracoreLib.Transaction.DUST_AMOUNT);
 
     if (output.amount < dustThreshold) {
       return Errors.DUST_AMOUNT;
@@ -219,7 +219,7 @@ export class BtcChain implements IChain {
     let addressType = '';
 
     if (address) {
-      const a = this.bitcoreLib.Address(address);
+      const a = this.astracoreLib.Address(address);
       addressType = a.type;
     }
 
@@ -254,11 +254,11 @@ export class BtcChain implements IChain {
 
     let outputsSize = 0;
     let outputs = _.isArray(txp.outputs) ? txp.outputs : [txp.toAddress];
-    let addresses = outputs.map(x => x.toAddress);
+    let addresses = outputs.map((x) => x.toAddress);
     if (txp.changeAddress) {
       addresses.push(txp.changeAddress.address);
     }
-    _.each(addresses, x => {
+    _.each(addresses, (x) => {
       outputsSize += this.getEstimatedSizeForSingleOutput(x);
     });
 
@@ -291,15 +291,15 @@ export class BtcChain implements IChain {
   }
 
   getFee(server, wallet, opts) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       server._getFeePerKb(wallet, opts, (err, feePerKb) => {
         return resolve({ feePerKb });
       });
     });
   }
 
-  getBitcoreTx(txp, opts = { signed: true }) {
-    const t = new this.bitcoreLib.Transaction();
+  getAstracoreTx(txp, opts = { signed: true }) {
+    const t = new this.astracoreLib.Transaction();
 
     // BTC tx version
     if (txp.version <= 3) {
@@ -315,7 +315,7 @@ export class BtcChain implements IChain {
      * txp.inputs clean txp.input
      * removes possible nSequence number (BIP68)
      */
-    let inputs = txp.inputs.map(x => {
+    let inputs = txp.inputs.map((x) => {
       return {
         address: x.address,
         txid: x.txid,
@@ -323,14 +323,14 @@ export class BtcChain implements IChain {
         outputIndex: x.outputIndex,
         scriptPubKey: x.scriptPubKey,
         satoshis: x.satoshis,
-        publicKeys: x.publicKeys
+        publicKeys: x.publicKeys,
       };
     });
 
     switch (txp.addressType) {
       case Constants.SCRIPT_TYPES.P2WSH:
       case Constants.SCRIPT_TYPES.P2SH:
-        _.each(inputs, i => {
+        _.each(inputs, (i) => {
           $.checkState(i.publicKeys, 'Inputs should include public keys');
           t.from(i, i.publicKeys, txp.requiredSignatures);
         });
@@ -341,13 +341,13 @@ export class BtcChain implements IChain {
         break;
     }
 
-    _.each(txp.outputs, o => {
+    _.each(txp.outputs, (o) => {
       $.checkState(o.script || o.toAddress, 'Output should have either toAddress or script specified');
       if (o.script) {
         t.addOutput(
-          new this.bitcoreLib.Transaction.Output({
+          new this.astracoreLib.Transaction.Output({
             script: o.script,
-            satoshis: o.amount
+            satoshis: o.amount,
           })
         );
       } else {
@@ -367,14 +367,14 @@ export class BtcChain implements IChain {
         return order >= t.outputs.length;
       });
       $.checkState(t.outputs.length == outputOrder.length);
-      t.sortOutputs(outputs => {
-        return _.map(outputOrder, i => {
+      t.sortOutputs((outputs) => {
+        return _.map(outputOrder, (i) => {
           return outputs[i];
         });
       });
     }
 
-    // Validate actual inputs vs outputs independently of Bitcore
+    // Validate actual inputs vs outputs independently of Astracore
     const totalInputs = _.sumBy(t.inputs, 'output.satoshis');
     const totalOutputs = _.sumBy(t.outputs, 'satoshis');
 
@@ -383,8 +383,8 @@ export class BtcChain implements IChain {
 
     if (opts.signed) {
       const sigs = txp.getCurrentSignatures();
-      _.each(sigs, x => {
-        this.addSignaturesToBitcoreTx(t, txp.inputs, txp.inputPaths, x.signatures, x.xpub, txp.signingMethod);
+      _.each(sigs, (x) => {
+        this.addSignaturesToAstracoreTx(t, txp.inputs, txp.inputPaths, x.signatures, x.xpub, txp.signingMethod);
       });
     }
     return t;
@@ -395,7 +395,7 @@ export class BtcChain implements IChain {
   }
 
   checkTx(txp) {
-    let bitcoreError;
+    let astracoreError;
     const MAX_TX_SIZE_IN_KB = Defaults.MAX_TX_SIZE_IN_KB_BTC;
 
     if (this.getEstimatedSize(txp) / 1000 > MAX_TX_SIZE_IN_KB) return Errors.TX_MAX_SIZE_EXCEEDED;
@@ -403,43 +403,44 @@ export class BtcChain implements IChain {
     const serializationOpts = {
       disableIsFullySigned: true,
       disableSmallFees: true,
-      disableLargeFees: true
+      disableLargeFees: true,
     };
     if (_.isEmpty(txp.inputPaths)) return Errors.NO_INPUT_PATHS;
 
     try {
-      const bitcoreTx = this.getBitcoreTx(txp);
-      bitcoreError = bitcoreTx.getSerializationError(serializationOpts);
-      if (!bitcoreError) {
-        txp.fee = bitcoreTx.getFee();
+      const astracoreTx = this.getAstracoreTx(txp);
+      astracoreError = astracoreTx.getSerializationError(serializationOpts);
+      if (!astracoreError) {
+        txp.fee = astracoreTx.getFee();
       }
     } catch (ex) {
-      logger.warn('Error building Bitcore transaction', ex);
+      logger.warn('Error building Astracore transaction', ex);
       return ex;
     }
 
-    if (bitcoreError instanceof this.bitcoreLib.errors.Transaction.FeeError) return Errors.INSUFFICIENT_FUNDS_FOR_FEE;
-    if (bitcoreError instanceof this.bitcoreLib.errors.Transaction.DustOutputs) return Errors.DUST_AMOUNT;
-    return bitcoreError;
+    if (astracoreError instanceof this.astracoreLib.errors.Transaction.FeeError)
+      return Errors.INSUFFICIENT_FUNDS_FOR_FEE;
+    if (astracoreError instanceof this.astracoreLib.errors.Transaction.DustOutputs) return Errors.DUST_AMOUNT;
+    return astracoreError;
   }
 
   checkTxUTXOs(server, txp, opts, cb) {
     logger.debug('Rechecking UTXOs availability for publishTx');
 
-    const utxoKey = utxo => {
+    const utxoKey = (utxo) => {
       return utxo.txid + '|' + utxo.vout;
     };
 
     server.getUtxosForCurrentWallet(
       {
-        addresses: txp.inputs
+        addresses: txp.inputs,
       },
       (err, utxos) => {
         if (err) return cb(err);
 
         const txpInputs = _.map(txp.inputs, utxoKey);
         const utxosIndex = _.keyBy(utxos, utxoKey);
-        const unavailable = _.some(txpInputs, i => {
+        const unavailable = _.some(txpInputs, (i) => {
           const utxo = utxosIndex[i];
           return !utxo || utxo.locked;
         });
@@ -457,7 +458,7 @@ export class BtcChain implements IChain {
       totalConfirmedAmount: _.sumBy(_.filter(utxos, 'confirmations'), 'satoshis'),
       lockedConfirmedAmount: _.sumBy(_.filter(_.filter(utxos, 'locked'), 'confirmations'), 'satoshis'),
       availableAmount: undefined,
-      availableConfirmedAmount: undefined
+      availableConfirmedAmount: undefined,
     };
     balance.availableAmount = balance.totalAmount - balance.lockedAmount;
     balance.availableConfirmedAmount = balance.totalConfirmedAmount - balance.lockedConfirmedAmount;
@@ -480,7 +481,7 @@ export class BtcChain implements IChain {
     const sizePerInput = this.getEstimatedSizeForSingleInput(txp);
     const feePerInput = (sizePerInput * txp.feePerKb) / 1000;
 
-    const sanitizeUtxos = utxos => {
+    const sanitizeUtxos = (utxos) => {
       const excludeIndex = _.reduce(
         opts.utxosToExclude,
         (res, val) => {
@@ -490,7 +491,7 @@ export class BtcChain implements IChain {
         {}
       );
 
-      return _.filter(utxos, utxo => {
+      return _.filter(utxos, (utxo) => {
         if (utxo.locked) return false;
         if (utxo.satoshis <= feePerInput) return false;
         if (txp.excludeUnconfirmedUtxos && !utxo.confirmations) return false;
@@ -528,12 +529,12 @@ export class BtcChain implements IChain {
       const bigInputThreshold = txpAmount * Defaults.UTXO_SELECTION_MAX_SINGLE_UTXO_FACTOR + (baseTxpFee + feePerInput);
       logger.debug('Big input threshold ' + Utils.formatAmountInBtc(bigInputThreshold));
 
-      const partitions = _.partition(utxos, utxo => {
+      const partitions = _.partition(utxos, (utxo) => {
         return utxo.satoshis > bigInputThreshold;
       });
 
       const bigInputs = _.sortBy(partitions[0], 'satoshis');
-      const smallInputs = _.sortBy(partitions[1], utxo => {
+      const smallInputs = _.sortBy(partitions[1], (utxo) => {
         return -utxo.satoshis;
       });
 
@@ -597,7 +598,7 @@ export class BtcChain implements IChain {
           const changeAmount = Math.round(total - txpAmount - fee);
           // logger.debug('Tx change: ', Utils.formatAmountInBtc(changeAmount));
 
-          const dustThreshold = Math.max(Defaults.MIN_OUTPUT_AMOUNT, this.bitcoreLib.Transaction.DUST_AMOUNT);
+          const dustThreshold = Math.max(Defaults.MIN_OUTPUT_AMOUNT, this.astracoreLib.Transaction.DUST_AMOUNT);
           if (changeAmount > 0 && changeAmount <= dustThreshold) {
             // logger.debug('Change below dust threshold (' + Utils.formatAmountInBtc(dustThreshold) + '). Incrementing fee to remove change.');
             // Remove dust change by incrementing fee
@@ -666,10 +667,10 @@ export class BtcChain implements IChain {
         () => {
           return i < groups.length && _.isEmpty(inputs);
         },
-        next => {
+        (next) => {
           const group = groups[i++];
 
-          const candidateUtxos = _.filter(utxos, utxo => {
+          const candidateUtxos = _.filter(utxos, (utxo) => {
             return utxo.confirmations >= group;
           });
 
@@ -702,7 +703,7 @@ export class BtcChain implements IChain {
             return next();
           });
         },
-        err => {
+        (err) => {
           if (err) return cb(err);
           if (selectionError || _.isEmpty(inputs)) return cb(selectionError || new Error('Could not select tx inputs'));
 
@@ -760,22 +761,22 @@ export class BtcChain implements IChain {
 
   addressToStorageTransform(network, address) {}
 
-  addSignaturesToBitcoreTx(tx, inputs, inputPaths, signatures, xpub, signingMethod) {
+  addSignaturesToAstracoreTx(tx, inputs, inputPaths, signatures, xpub, signingMethod) {
     signingMethod = signingMethod || 'ecdsa';
     if (signatures.length != inputs.length) throw new Error('Number of signatures does not match number of inputs');
 
     let i = 0;
-    const x = new this.bitcoreLib.HDPublicKey(xpub);
+    const x = new this.astracoreLib.HDPublicKey(xpub);
 
-    _.each(signatures, signatureHex => {
+    _.each(signatures, (signatureHex) => {
       try {
-        const signature = this.bitcoreLib.crypto.Signature.fromString(signatureHex);
+        const signature = this.astracoreLib.crypto.Signature.fromString(signatureHex);
         const pub = x.deriveChild(inputPaths[i]).publicKey;
         const s = {
           inputIndex: i,
           signature,
-          sigtype: this.bitcoreLib.crypto.Signature.SIGHASH_ALL | this.bitcoreLib.crypto.Signature.SIGHASH_FORKID,
-          publicKey: pub
+          sigtype: this.astracoreLib.crypto.Signature.SIGHASH_ALL | this.astracoreLib.crypto.Signature.SIGHASH_FORKID,
+          publicKey: pub,
         };
         tx.inputs[i].addSignature(tx, s, signingMethod);
         i++;
@@ -786,7 +787,7 @@ export class BtcChain implements IChain {
   }
 
   validateAddress(wallet, inaddr, opts) {
-    const A = this.bitcoreLib.Address;
+    const A = this.astracoreLib.Address;
     let addr: {
       network?: string;
       toString?: (cashAddr: boolean) => string;
@@ -810,9 +811,9 @@ export class BtcChain implements IChain {
     return {
       out: {
         address: coin.address,
-        amount: coin.value
+        amount: coin.value,
       },
-      txid: coin.mintTxid
+      txid: coin.mintTxid,
     };
   }
 

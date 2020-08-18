@@ -2,10 +2,10 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
+var astracore = require('astracore-lib-cash');
 var utils = require('../utils');
-var BufferReader = bitcore.encoding.BufferReader;
-var BufferWriter = bitcore.encoding.BufferWriter;
+var BufferReader = astracore.encoding.BufferReader;
+var BufferWriter = astracore.encoding.BufferWriter;
 
 /**
  * The reject message is sent when messages are rejected.
@@ -41,10 +41,10 @@ RejectMessage.CCODE = {
   REJECT_NONSTANDARD: 0x40,
   REJECT_DUST: 0x41,
   REJECT_INSUFFICIENTFEE: 0x42,
-  REJECT_CHECKPOINT: 0x43
+  REJECT_CHECKPOINT: 0x43,
 };
 
-RejectMessage.prototype.setPayload = function(payload) {
+RejectMessage.prototype.setPayload = function (payload) {
   var parser = new BufferReader(payload);
   this.message = parser.readVarLengthBuffer().toString('utf-8');
   this.ccode = parser.readUInt8();
@@ -53,7 +53,7 @@ RejectMessage.prototype.setPayload = function(payload) {
   utils.checkFinished(parser);
 };
 
-RejectMessage.prototype.getPayload = function() {
+RejectMessage.prototype.getPayload = function () {
   var bw = new BufferWriter();
   bw.writeVarintNum(this.message.length);
   bw.write(new Buffer(this.message, 'utf-8'));

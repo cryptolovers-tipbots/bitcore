@@ -22,12 +22,12 @@ function startGulp(name, opts) {
   var task = {};
   opts = opts || {};
   var browser = !opts.skipBrowser;
-  var fullname = name ? 'bitcore-' + name : 'bitcore';
+  var fullname = name ? 'astracore-' + name : 'astracore';
   var files = ['lib/**/*.js'];
   var tests = ['test/**/*.js'];
   var alljs = files.concat(tests);
 
-  var buildPath = './node_modules/bitcore-build/';
+  var buildPath = './node_modules/astracore-build/';
   var buildModulesPath = buildPath + 'node_modules/';
   var buildBinPath = buildPath + 'node_modules/.bin/';
 
@@ -62,56 +62,55 @@ function startGulp(name, opts) {
    * testing
    */
   var testmocha = function () {
-    return gulp.src(tests).pipe(mocha({
-      reporter: 'spec'
-    }));
+    return gulp.src(tests).pipe(
+      mocha({
+        reporter: 'spec',
+      })
+    );
   };
 
-  task['test:karma'] = shell.task([
-    karmaPath + '  start ' + buildPath + 'karma.conf.js --single-run '
-  ]);
+  task['test:karma'] = shell.task([karmaPath + '  start ' + buildPath + 'karma.conf.js --single-run ']);
 
-  task['test:node'] =  testmocha;
-  task['test:node:nofail'] =  function() {
+  task['test:node'] = testmocha;
+  task['test:node:nofail'] = function () {
     return testmocha().on('error', ignoreerror);
   };
 
-
-  task['noop']= function() {};
+  task['noop'] = function () {};
 
   /**
    * file generation
    */
   if (browser) {
-
     var browserifyCommand;
 
     if (name !== 'lib') {
-      browserifyCommand = browserifyPath + ' --require ./index.js:' + fullname + ' --external bitcore-lib -o ' + fullname + '.js';
+      browserifyCommand =
+        browserifyPath + ' --require ./index.js:' + fullname + ' --external astracore-lib -o ' + fullname + '.js';
     } else {
-      browserifyCommand = browserifyPath + ' --require ./index.js:bitcore-lib -o bitcore-lib.js';
+      browserifyCommand = browserifyPath + ' --require ./index.js:astracore-lib -o astracore-lib.js';
     }
 
-    task['browser:uncompressed'] = shell.task([
-      browserifyCommand
-    ]);
+    task['browser:uncompressed'] = shell.task([browserifyCommand]);
 
-    task['browser:terser'] =function() {
-      return gulp.src(fullname + '.js')
-        .pipe(terser({
-          mangle: true,
-          compress: true
-        }))
+    task['browser:terser'] = function () {
+      return gulp
+        .src(fullname + '.js')
+        .pipe(
+          terser({
+            mangle: true,
+            compress: true,
+          })
+        )
         .pipe(rename(fullname + '.min.js'))
         .pipe(gulp.dest('.'))
         .on('error', console.error);
     };
 
-    task['browser:compressed'] =
-      gulp.series(task['browser:uncompressed'], task['browser:terser']);
+    task['browser:compressed'] = gulp.series(task['browser:uncompressed'], task['browser:terser']);
 
     task['browser:maketests'] = shell.task([
-      'find test/ -type f -name "*.js" | xargs ' + browserifyPath + ' -t brfs -o tests.js'
+      'find test/ -type f -name "*.js" | xargs ' + browserifyPath + ' -t brfs -o tests.js',
     ]);
 
     task['browser'] = task['browser:compressed'];
@@ -129,9 +128,9 @@ function startGulp(name, opts) {
 
   //  task['plato']= shell.task([platoPath + ' -d report -r -l .jshintrc -t ' + fullname + ' lib']);
 
-  task['coverage']= shell.task([istanbulPath + ' cover ' + mochaPath + ' -- --recursive']);
+  task['coverage'] = shell.task([istanbulPath + ' cover ' + mochaPath + ' -- --recursive']);
 
-  task['coveralls'] = gulp.series(task['coverage'], function() {
+  task['coveralls'] = gulp.series(task['coverage'], function () {
     gulp.src('coverage/lcov.info').pipe(coveralls());
   });
 
@@ -139,60 +138,60 @@ function startGulp(name, opts) {
    * watch tasks
    */
 
-  task['watch:test'] = function() {
+  task['watch:test'] = function () {
     //// todo: only run tests that are linked to file changes by doing
     //// something smart like reading through the require statements
     return gulp.watch(alljs, gulp.series('test'));
   };
 
-  task['watch:test:node']= function() {
+  task['watch:test:node'] = function () {
     //// todo: only run tests that are linked to file changes by doing
     //// something smart like reading through the require statements
     return gulp.watch(alljs, gulp.series('test:node'));
   };
 
   if (browser) {
-    task['watch:test:browser'], function() {
-      // todo: only run tests that are linked to file changes by doing
-      // something smart like reading through the require statements
-      return gulp.watch(alljs, task['test:browser']);
-    };
+    task['watch:test:browser'],
+      function () {
+        // todo: only run tests that are linked to file changes by doing
+        // something smart like reading through the require statements
+        return gulp.watch(alljs, task['test:browser']);
+      };
   }
 
-  task['watch:coverage']= function() {
+  task['watch:coverage'] = function () {
     // todo: only run tests that are linked to file changes by doing
     // something smart like reading through the require statements
     return gulp.watch(alljs, task[coverage]);
   };
 
-  task['watch:lint']= function() {
+  task['watch:lint'] = function () {
     //// todo: only lint files that are linked to file changes by doing
     //// something smart like reading through the require statements
     return gulp.watch(alljs, task[lint]);
   };
 
   if (browser) {
-    task['watch:browser']= function() {
+    task['watch:browser'] = function () {
       return gulp.watch(alljs, task[browser]);
     };
   }
 
   if (browser) {
     task['test:browser'] = gulp.series(task['browser:uncompressed'], task['browser:maketests'], task['test:karma']);
-    task['test']= gulp.series(task['test:node'], task['test:browser']);
+    task['test'] = gulp.series(task['test:node'], task['test:browser']);
   } else {
-    task['test']= task['test:node'];
+    task['test'] = task['test:node'];
   }
-  task['default']= task['test'];
+  task['default'] = task['test'];
 
   /**
    * Release automation
    */
 
-  task['release:install']= shell.task([ 'npm install']);
+  task['release:install'] = shell.task(['npm install']);
   var releaseFiles = ['./package.json'];
-  return  task;
+  return task;
 }
 
 module.exports = startGulp;
-

@@ -4,7 +4,7 @@ import * as secp256k1 from 'secp256k1';
 import { URL } from 'url';
 import logger from '../../logger';
 
-const bitcoreLib = require('bitcore-lib');
+const astracoreLib = require('astracore-lib');
 
 export class Client {
   authKey: { bn: { toBuffer: (arg) => Buffer } };
@@ -23,7 +23,7 @@ export class Client {
   sign(params: { method: string; url: string; payload?: any }) {
     const message = this.getMessage(params);
     const privateKey = this.authKey.bn.toBuffer({ size: 32 });
-    const messageHash = bitcoreLib.crypto.Hash.sha256sha256(Buffer.from(message));
+    const messageHash = astracoreLib.crypto.Hash.sha256sha256(Buffer.from(message));
 
     return secp256k1.sign(messageHash, privateKey).signature.toString('hex');
   }
@@ -37,7 +37,7 @@ export class Client {
     return request.post(url, {
       headers: { 'x-signature': signature },
       body: payload,
-      json: true
+      json: true,
     });
   }
 
@@ -59,7 +59,7 @@ export class Client {
     return request.get(url, {
       headers: { 'x-signature': signature },
       body: payload,
-      json: true
+      json: true,
     });
   }
 
@@ -71,7 +71,7 @@ export class Client {
     return request.get(url, {
       headers: { 'x-signature': signature },
       body: payload,
-      json: true
+      json: true,
     });
   }
 
@@ -80,7 +80,7 @@ export class Client {
     const args = unspent ? `?unspent=${unspent}` : '';
     const url = `${this.baseUrl}/address/${address}${args}`;
     return request.get(url, {
-      json: true
+      json: true,
     });
   }
 
@@ -88,7 +88,7 @@ export class Client {
     const { txid } = params;
     const url = `${this.baseUrl}/tx/${txid}`;
     return request.get(url, {
-      json: true
+      json: true,
     });
   }
 
@@ -105,7 +105,7 @@ export class Client {
     return request.get(url, {
       headers: { 'x-signature': signature },
       body: payload,
-      json: true
+      json: true,
     });
   }
 
@@ -114,7 +114,7 @@ export class Client {
     const url = `${this.baseUrl}/tx/${txId}/coins`;
     logger.debug('GET COINS FOR TX:', url);
     return request.get(url, {
-      json: true
+      json: true,
     });
   }
 
@@ -127,7 +127,7 @@ export class Client {
       endDate,
       includeMempool,
       tokenAddress,
-      multisigContractAddress
+      multisigContractAddress,
     } = params;
     let query = '';
     let apiUrl = `${this.baseUrl}/wallet/${pubKey}/transactions?`;
@@ -151,7 +151,7 @@ export class Client {
     logger.debug('List transactions', url);
     return requestStream.get(url, {
       headers: { 'x-signature': signature },
-      json: true
+      json: true,
     });
   }
 
@@ -165,7 +165,7 @@ export class Client {
     return request.post(url, {
       headers: h,
       body: payload,
-      json: true
+      json: true,
     });
   }
 

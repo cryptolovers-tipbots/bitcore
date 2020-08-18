@@ -9,21 +9,21 @@ const PROVIDERS = {
   v8: {
     btc: {
       livenet: 'https://api.bitpay.com',
-      testnet: 'https://api.bitpay.com'
+      testnet: 'https://api.bitpay.com',
     },
     bch: {
       livenet: 'https://api.bitpay.com',
-      testnet: 'https://api.bitpay.com'
+      testnet: 'https://api.bitpay.com',
     },
     eth: {
-      livenet: 'https://api-eth.bitcore.io',
-      testnet: 'https://api-eth.bitcore.io'
+      livenet: 'https://api-eth.astracore.io',
+      testnet: 'https://api-eth.astracore.io',
     },
     xrp: {
-      livenet: 'https://api-xrp.bitcore.io',
-      testnet: 'https://api-xrp.bitcore.io'
-    }
-  }
+      livenet: 'https://api-xrp.astracore.io',
+      testnet: 'https://api-xrp.astracore.io',
+    },
+  },
 };
 
 export function BlockChainExplorer(opts) {
@@ -55,7 +55,7 @@ export function BlockChainExplorer(opts) {
         url,
         apiPrefix: opts.apiPrefix,
         userAgent: opts.userAgent,
-        addressFormat: opts.addressFormat
+        addressFormat: opts.addressFormat,
       });
 
     default:

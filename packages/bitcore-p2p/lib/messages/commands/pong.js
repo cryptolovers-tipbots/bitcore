@@ -2,12 +2,12 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
+var astracore = require('astracore-lib');
 var utils = require('../utils');
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
-var BufferUtil = bitcore.util.buffer;
-var BufferReader = bitcore.encoding.BufferReader;
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
+var BufferUtil = astracore.util.buffer;
+var BufferReader = astracore.encoding.BufferReader;
 
 /**
  * A message in response to a ping message.
@@ -27,14 +27,14 @@ function PongMessage(arg, options) {
 }
 inherits(PongMessage, Message);
 
-PongMessage.prototype.setPayload = function(payload) {
+PongMessage.prototype.setPayload = function (payload) {
   var parser = new BufferReader(payload);
   this.nonce = parser.read(8);
 
   utils.checkFinished(parser);
 };
 
-PongMessage.prototype.getPayload = function() {
+PongMessage.prototype.getPayload = function () {
   return this.nonce;
 };
 

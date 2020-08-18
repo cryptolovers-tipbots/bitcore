@@ -1,10 +1,10 @@
-# Bitcore Client
+# Astracore Client
 
-**A helper to create a wallet using the bitcore-v8 infrastructure.**
+**A helper to create a wallet using the astracore-v8 infrastructure.**
 
 ## Purpose
 
-This repo should allow you to create a wallet using the bitcore-v8 infrastructure.
+This repo should allow you to create a wallet using the astracore-v8 infrastructure.
 
 Currently we have the following features
 
@@ -22,13 +22,13 @@ Currently we have the following features
 
 ### Wallet Create
 
-No baseUrl flag will automatically create a wallet that points to https://api.bitcore.io/api.
+No baseUrl flag will automatically create a wallet that points to https://api.astracore.io/api.
 
 ```sh
 ./wallet-create --name TestWalletBTC --chain BTC --network mainnet
 ```
 
-To create a wallet to point to local bitcore-node.
+To create a wallet to point to local astracore-node.
 
 ```sh
 ./wallet-create --name myregtestwallet --chain BCH --network regtest --baseUrl http://localhost:3000/api
@@ -36,13 +36,13 @@ To create a wallet to point to local bitcore-node.
 
 ### Register an Existing Wallet
 
-Register an existing wallet to point to custom Bitcore API url.
+Register an existing wallet to point to custom Astracore API url.
 
 ```sh
-./wallet-register --name myregtestwallet --baseUrl https://api.bitcore.io/api
+./wallet-register --name myregtestwallet --baseUrl https://api.astracore.io/api
 ```
 
-Or a local Bitcore-node
+Or a local Astracore-node
 
 ```sh
 ./wallet-register --name myregtestwallet --baseUrl http://localhost:3000/api
@@ -122,10 +122,10 @@ Valid types of time (no slash marks allowed):
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/bitpay/bitcore/blob/master/Contributing.md) on the main bitcore repo for information about how to contribute.
+See [CONTRIBUTING.md](https://github.com/bitpay/astracore/blob/master/Contributing.md) on the main astracore repo for information about how to contribute.
 
 ## License
 
-Code released under [the MIT license](https://github.com/bitpay/bitcore/blob/master/LICENSE).
+Code released under [the MIT license](https://github.com/bitpay/astracore/blob/master/LICENSE).
 
-Copyright 2013-2019 BitPay, Inc. Bitcore is a trademark maintained by BitPay, Inc.
+Copyright 2013-2019 Astracore, Inc. Astracore is a trademark maintained by Astracore, Inc.

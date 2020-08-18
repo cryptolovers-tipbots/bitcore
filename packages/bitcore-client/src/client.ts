@@ -5,7 +5,7 @@ import * as stream from 'stream';
 import { URL } from 'url';
 let usingBrowser = (global as any).window;
 const URLClass = usingBrowser ? usingBrowser.URL : URL;
-const bitcoreLib = require('crypto-wallet-core').BitcoreLib;
+const astracoreLib = require('crypto-wallet-core').AstracoreLib;
 
 export class Client {
   apiUrl: string;
@@ -23,7 +23,7 @@ export class Client {
   sign(params: { method: string; url: string; payload?: any }) {
     const message = this.getMessage(params);
     const privateKey = this.authKey.toBuffer();
-    const messageHash = bitcoreLib.crypto.Hash.sha256sha256(Buffer.from(message));
+    const messageHash = astracoreLib.crypto.Hash.sha256sha256(Buffer.from(message));
     return secp256k1.sign(messageHash, privateKey).signature.toString('hex');
   }
 
@@ -36,7 +36,7 @@ export class Client {
     return request.post(url, {
       headers: { 'x-signature': signature },
       body: payload,
-      json: true
+      json: true,
     });
   }
 
@@ -57,7 +57,7 @@ export class Client {
     const signature = this.sign({ method: 'GET', url });
     return request.get(url, {
       headers: { 'x-signature': signature },
-      json: true
+      json: true,
     });
   }
 
@@ -73,12 +73,12 @@ export class Client {
     return request.get(url, { json: true });
   }
 
-  getAddressTxos = async function(params) {
+  getAddressTxos = async function (params) {
     const { unspent, address } = params;
     const args = unspent ? `?unspent=${unspent}` : '';
     const url = `${this.apiUrl}/address/${address}${args}`;
     return request.get(url, {
-      json: true
+      json: true,
     });
   };
 
@@ -89,7 +89,7 @@ export class Client {
     return requestStream.get(url, {
       headers: { 'x-signature': signature },
       body: payload,
-      json: true
+      json: true,
     });
   }
 
@@ -122,19 +122,19 @@ export class Client {
     return requestStream.get(url, {
       headers: { 'x-signature': signature },
       body: payload,
-      json: true
+      json: true,
     });
   }
 
   async getFee(params) {
     const { target } = params;
     const url = `${this.apiUrl}/fee/${target}`;
-    return new Promise(resolve =>
+    return new Promise((resolve) =>
       request
         .get(url, {
-          json: true
+          json: true,
         })
-        .on('data', d => resolve(d))
+        .on('data', (d) => resolve(d))
     );
   }
 
@@ -143,15 +143,15 @@ export class Client {
     const url = `${this.apiUrl}/wallet/${pubKey}`;
     const signature = this.sign({ method: 'POST', url, payload });
 
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       let dataStream = new stream.Readable({ objectMode: true });
       dataStream
         .pipe(
           request.post(url, {
             headers: {
               'x-signature': signature,
-              'content-type': 'application/octet-stream'
-            }
+              'content-type': 'application/octet-stream',
+            },
           })
         )
         .on('end', resolve);
@@ -173,7 +173,7 @@ export class Client {
     const signature = this.sign({ method: 'GET', url });
     return request.get(url, {
       headers: { 'x-signature': signature },
-      json: true
+      json: true,
     });
   }
 
@@ -183,7 +183,7 @@ export class Client {
     const signature = this.sign({ method: 'GET', url });
     return request.get(url, {
       headers: { 'x-signature': signature },
-      json: true
+      json: true,
     });
   }
 }

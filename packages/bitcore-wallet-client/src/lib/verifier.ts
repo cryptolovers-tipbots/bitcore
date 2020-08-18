@@ -2,10 +2,10 @@ import * as _ from 'lodash';
 import { Constants, Utils } from './common';
 var $ = require('preconditions').singleton();
 
-import { BitcoreLib, BitcoreLibCash } from 'crypto-wallet-core';
+import { AstracoreLib, AstracoreLibCash } from 'crypto-wallet-core';
 
-var Bitcore = BitcoreLib;
-var BCHAddress = BitcoreLibCash.Address;
+var Astracore = AstracoreLib;
+var BCHAddress = AstracoreLibCash.Address;
 
 var log = require('./log');
 
@@ -45,9 +45,7 @@ export class Verifier {
    */
   static checkCopayers(credentials, copayers) {
     $.checkState(credentials.walletPrivKey);
-    var walletPubKey = Bitcore.PrivateKey.fromString(credentials.walletPrivKey)
-      .toPublicKey()
-      .toString();
+    var walletPubKey = Astracore.PrivateKey.fromString(credentials.walletPrivKey).toPublicKey().toString();
 
     if (copayers.length != credentials.n) {
       log.error('Missing public keys in server response');
@@ -57,7 +55,7 @@ export class Verifier {
     // Repeated xpub kes?
     var uniq = [];
     var error;
-    _.each(copayers, copayer => {
+    _.each(copayers, (copayer) => {
       if (error) return;
 
       if (uniq[copayers.xPubKey]++) {
@@ -138,7 +136,7 @@ export class Verifier {
     $.checkArgument(txp.creatorId);
     $.checkState(credentials.isComplete());
 
-    var creatorKeys = _.find(credentials.publicKeyRing, item => {
+    var creatorKeys = _.find(credentials.publicKeyRing, (item) => {
       if (Utils.xPubToCopayerId(txp.coin || 'btc', item.xPubKey) === txp.creatorId) return true;
     });
 

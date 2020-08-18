@@ -2,10 +2,10 @@
 
 var dns = require('dns');
 var EventEmitter = require('events').EventEmitter;
-var bitcore = require('bitcore-lib');
-var sha256 = bitcore.crypto.Hash.sha256;
+var astracore = require('astracore-lib');
+var sha256 = astracore.crypto.Hash.sha256;
 var Peer = require('./peer');
-var Networks = bitcore.Networks;
+var Networks = astracore.Networks;
 var util = require('util');
 var net = require('net');
 
@@ -58,7 +58,7 @@ function Pool(options) {
   this.relay = options.relay === false ? false : true;
 
   if (options.addrs) {
-    for(var i = 0; i < options.addrs.length; i++) {
+    for (var i = 0; i < options.addrs.length; i++) {
       this._addAddr(options.addrs[i]);
     }
   }
@@ -69,7 +69,7 @@ function Pool(options) {
       var length = addrs.length;
       for (var i = 0; i < length; i++) {
         var addr = addrs[i];
-        var future = new Date().getTime() + (10 * 60 * 1000);
+        var future = new Date().getTime() + 10 * 60 * 1000;
         if (addr.time.getTime() <= 100000000000 || addr.time.getTime() > future) {
           // In case of an invalid time, assume "5 days ago"
           var past = new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000);
@@ -81,11 +81,11 @@ function Pool(options) {
   }
 
   this.on('seed', function seedEvent(ips) {
-    ips.forEach(function(ip) {
+    ips.forEach(function (ip) {
       self._addAddr({
         ip: {
-          v4: ip
-        }
+          v4: ip,
+        },
       });
     });
     if (self.keepalive) {
@@ -102,17 +102,33 @@ function Pool(options) {
   });
 
   return this;
-
 }
 
 util.inherits(Pool, EventEmitter);
 
 Pool.MaxConnectedPeers = 8;
 Pool.RetrySeconds = 30;
-Pool.PeerEvents = ['version', 'inv', 'getdata', 'ping', 'pong', 'addr',
-  'getaddr', 'verack', 'reject', 'alert', 'headers', 'block', 'merkleblock',
-  'tx', 'getblocks', 'getheaders', 'error', 'filterload', 'filteradd',
-  'filterclear'
+Pool.PeerEvents = [
+  'version',
+  'inv',
+  'getdata',
+  'ping',
+  'pong',
+  'addr',
+  'getaddr',
+  'verack',
+  'reject',
+  'alert',
+  'headers',
+  'block',
+  'merkleblock',
+  'tx',
+  'getblocks',
+  'getheaders',
+  'error',
+  'filterload',
+  'filteradd',
+  'filterclear',
 ];
 
 /**
@@ -194,7 +210,7 @@ Pool.prototype._connectPeer = function _connectPeer(addr) {
       port: port,
       messages: self.messages,
       network: this.network,
-      relay: self.relay
+      relay: self.relay,
     });
 
     peer.on('connect', function peerConnect() {
@@ -222,7 +238,7 @@ Pool.prototype._addConnectedPeer = function _addConnectedPeer(socket, addr) {
     var peer = new Peer({
       socket: socket,
       network: this.network,
-      messages: self.messages
+      messages: self.messages,
     });
 
     self._addPeerEventHandlers(peer, addr);
@@ -237,7 +253,7 @@ Pool.prototype._addConnectedPeer = function _addConnectedPeer(socket, addr) {
  * Will add disconnect and ready events for a peer and intialize
  * handlers for relay peer message events.
  */
-Pool.prototype._addPeerEventHandlers = function(peer, addr) {
+Pool.prototype._addPeerEventHandlers = function (peer, addr) {
   var self = this;
 
   peer.on('disconnect', function peerDisconnect() {
@@ -303,7 +319,7 @@ Pool.prototype._addAddr = function _addAddr(addr) {
  */
 Pool.prototype._addAddrsFromSeed = function _addAddrsFromSeed(seed) {
   var self = this;
-  dns.resolve(seed, function(err, ips) {
+  dns.resolve(seed, function (err, ips) {
     if (err) {
       self.emit('seederror', err);
       return;
@@ -325,7 +341,7 @@ Pool.prototype._addAddrsFromSeed = function _addAddrsFromSeed(seed) {
 Pool.prototype._addAddrsFromSeeds = function _addAddrsFromSeeds() {
   var self = this;
   var seeds = this.network.dnsSeeds;
-  seeds.forEach(function(seed) {
+  seeds.forEach(function (seed) {
     self._addAddrsFromSeed(seed);
   });
   return this;
@@ -335,19 +351,24 @@ Pool.prototype._addAddrsFromSeeds = function _addAddrsFromSeeds() {
  * @returns {String} A string formatted for the console
  */
 Pool.prototype.inspect = function inspect() {
-  return '<Pool network: ' +
-    this.network + ', connected: ' +
-    this.numberConnected() + ', available: ' +
-    this._addrs.length + '>';
+  return (
+    '<Pool network: ' +
+    this.network +
+    ', connected: ' +
+    this.numberConnected() +
+    ', available: ' +
+    this._addrs.length +
+    '>'
+  );
 };
 
 /**
  * Will send a message to all of the peers in the pool.
  * @param {Message} message - An instance of the message to send
  */
-Pool.prototype.sendMessage = function(message) {
+Pool.prototype.sendMessage = function (message) {
   // broadcast to peers
-  for(var key in this._connectedPeers) {
+  for (var key in this._connectedPeers) {
     var peer = this._connectedPeers[key];
     peer.sendMessage(message);
   }
@@ -357,15 +378,15 @@ Pool.prototype.sendMessage = function(message) {
  * Will enable a listener for peer connections, when a peer connects
  * it will be added to the pool.
  */
-Pool.prototype.listen = function() {
+Pool.prototype.listen = function () {
   var self = this;
 
   // Create server
-  this.server = net.createServer(function(socket) {
+  this.server = net.createServer(function (socket) {
     var addr = {
-      ip: {}
+      ip: {},
     };
-    if(net.isIPv6(socket.remoteAddress)) {
+    if (net.isIPv6(socket.remoteAddress)) {
       addr.ip.v6 = socket.remoteAddress;
     } else {
       addr.ip.v4 = socket.remoteAddress;

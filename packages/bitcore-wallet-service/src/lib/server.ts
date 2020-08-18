@@ -23,7 +23,7 @@ import {
   TxConfirmationSub,
   TxNote,
   TxProposal,
-  Wallet
+  Wallet,
 } from './model';
 import { Storage } from './storage';
 
@@ -36,12 +36,12 @@ const BCHAddressTranslator = require('./bchaddresstranslator');
 const EmailValidator = require('email-validator');
 
 import { Validation } from 'crypto-wallet-core';
-const Bitcore = require('bitcore-lib');
-const Bitcore_ = {
-  btc: Bitcore,
-  bch: require('bitcore-lib-cash'),
-  eth: Bitcore,
-  xrp: Bitcore
+const Astracore = require('astracore-lib');
+const Astracore_ = {
+  btc: Astracore,
+  bch: require('astracore-lib-cash'),
+  eth: Astracore,
+  xrp: Astracore,
 };
 
 const Common = require('./common');
@@ -93,7 +93,7 @@ function boolToNum(x: boolean) {
   return x ? 1 : 0;
 }
 /**
- * Creates an instance of the Bitcore Wallet Service.
+ * Creates an instance of the Astracore Wallet Service.
  * @constructor
  */
 export class WalletService {
@@ -163,13 +163,13 @@ export class WalletService {
       request = opts.request;
     }
 
-    const initStorage = cb => {
+    const initStorage = (cb) => {
       if (opts.storage) {
         storage = opts.storage;
         return cb();
       } else {
         const newStorage = new Storage();
-        newStorage.connect(opts.storageOpts, err => {
+        newStorage.connect(opts.storageOpts, (err) => {
           if (err) {
             return cb(err);
           }
@@ -179,7 +179,7 @@ export class WalletService {
       }
     };
 
-    const initMessageBroker = cb => {
+    const initMessageBroker = (cb) => {
       messageBroker = opts.messageBroker || new MessageBroker(opts.messageBrokerOpts);
       if (messageBroker) {
         messageBroker.onMessage(WalletService.handleIncomingNotifications);
@@ -188,7 +188,7 @@ export class WalletService {
       return cb();
     };
 
-    const initFiatRateService = cb => {
+    const initFiatRateService = (cb) => {
       if (opts.fiatRateService) {
         fiatRateService = opts.fiatRateService;
         return cb();
@@ -196,7 +196,7 @@ export class WalletService {
         const newFiatRateService = new FiatRateService();
         const opts2 = opts.fiatRateServiceOpts || {};
         opts2.storage = storage;
-        newFiatRateService.init(opts2, err => {
+        newFiatRateService.init(opts2, (err) => {
           if (err) {
             return cb(err);
           }
@@ -209,17 +209,17 @@ export class WalletService {
 
     async.series(
       [
-        next => {
+        (next) => {
           initStorage(next);
         },
-        next => {
+        (next) => {
           initMessageBroker(next);
         },
-        next => {
+        (next) => {
           initFiatRateService(next);
-        }
+        },
       ],
-      err => {
+      (err) => {
         lock = opts.lock || new Lock(storage, opts.lockOpts);
 
         if (err) {
@@ -233,7 +233,7 @@ export class WalletService {
   }
 
   static handleIncomingNotifications(notification, cb) {
-    cb = cb || function() {};
+    cb = cb || function () {};
 
     // do nothing here....
     // bc height cache is cleared on bcmonitor
@@ -245,7 +245,7 @@ export class WalletService {
       return cb();
     }
 
-    storage.disconnect(err => {
+    storage.disconnect((err) => {
       if (err) {
         return cb(err);
       }
@@ -293,7 +293,7 @@ export class WalletService {
    * for this request (only when copayer is support staff).
    */
   static getInstanceWithAuth(opts, cb) {
-    const withSignature = cb => {
+    const withSignature = (cb) => {
       if (!checkRequired(opts, ['copayerId', 'message', 'signature'], cb)) {
         return;
       }
@@ -334,7 +334,7 @@ export class WalletService {
       });
     };
 
-    const withSession = cb => {
+    const withSession = (cb) => {
       if (!checkRequired(opts, ['copayerId', 'session'], cb)) {
         return;
       }
@@ -411,7 +411,7 @@ export class WalletService {
     let session;
     async.series(
       [
-        next => {
+        (next) => {
           this.storage.getSession(this.copayerId, (err, s) => {
             if (err) {
               return next(err);
@@ -420,22 +420,22 @@ export class WalletService {
             next();
           });
         },
-        next => {
+        (next) => {
           if (!session || !session.isValid()) {
             session = Session.create({
               copayerId: this.copayerId,
-              walletId: this.walletId
+              walletId: this.walletId,
             });
           } else {
             session.touch();
           }
           next();
         },
-        next => {
+        (next) => {
           this.storage.storeSession(session, next);
-        }
+        },
       ],
-      err => {
+      (err) => {
         if (err) {
           return cb(err);
         }
@@ -514,7 +514,7 @@ export class WalletService {
     }
 
     try {
-      pubKey = new Bitcore.PublicKey.fromString(opts.pubKey);
+      pubKey = new Astracore.PublicKey.fromString(opts.pubKey);
     } catch (ex) {
       return cb(new ClientError('Invalid public key'));
     }
@@ -530,7 +530,7 @@ export class WalletService {
     let newWallet;
     async.series(
       [
-        acb => {
+        (acb) => {
           if (!opts.id) {
             return acb();
           }
@@ -542,7 +542,7 @@ export class WalletService {
             return acb(err);
           });
         },
-        acb => {
+        (acb) => {
           const wallet = Wallet.create({
             id: opts.id,
             name: opts.name,
@@ -555,16 +555,16 @@ export class WalletService {
             derivationStrategy,
             addressType,
             nativeCashAddr: opts.nativeCashAddr,
-            usePurpose48: opts.n > 1 && !!opts.usePurpose48
+            usePurpose48: opts.n > 1 && !!opts.usePurpose48,
           });
-          this.storage.storeWallet(wallet, err => {
+          this.storage.storeWallet(wallet, (err) => {
             this.logd('Wallet created', wallet.id, opts.network);
             newWallet = wallet;
             return acb(err);
           });
-        }
+        },
       ],
-      err => {
+      (err) => {
         return cb(err, newWallet ? newWallet.id : null);
       }
     );
@@ -588,10 +588,10 @@ export class WalletService {
 
       // remove someday...
       logger.info(`Migrating wallet ${wallet.id} to cashAddr`);
-      this.storage.migrateToCashAddr(this.walletId, e => {
+      this.storage.migrateToCashAddr(this.walletId, (e) => {
         if (e) return cb(e);
         wallet.nativeCashAddr = true;
-        return this.storage.storeWallet(wallet, e => {
+        return this.storage.storeWallet(wallet, (e) => {
           if (e) return cb(e);
           return cb(e, wallet);
         });
@@ -620,27 +620,27 @@ export class WalletService {
     let walletId;
     async.parallel(
       [
-        done => {
+        (done) => {
           this.storage.fetchWallet(opts.identifier, (err, wallet) => {
             if (wallet) walletId = wallet.id;
             return done(err);
           });
         },
-        done => {
+        (done) => {
           this.storage.fetchAddressByCoin(Defaults.COIN, opts.identifier, (err, address) => {
             if (address) walletId = address.walletId;
             return done(err);
           });
         },
-        done => {
+        (done) => {
           // sent txs
           this.storage.fetchTxByHash(opts.identifier, (err, tx) => {
             if (tx) walletId = tx.walletId;
             return done(err);
           });
-        }
+        },
       ],
-      err => {
+      (err) => {
         if (err) return cb(err);
         if (walletId) {
           return this.storage.fetchWallet(walletId, end);
@@ -691,20 +691,20 @@ export class WalletService {
     } = {};
     async.parallel(
       [
-        next => {
+        (next) => {
           this.getWallet({}, (err, wallet) => {
             if (err) return next(err);
 
             const walletExtendedKeys = ['publicKeyRing', 'pubKey', 'addressManager'];
             const copayerExtendedKeys = ['xPubKey', 'requestPubKey', 'signature', 'addressManager', 'customData'];
 
-            wallet.copayers = _.map(wallet.copayers, copayer => {
+            wallet.copayers = _.map(wallet.copayers, (copayer) => {
               if (copayer.id == this.copayerId) return copayer;
               return _.omit(copayer, 'customData');
             });
             if (!opts.includeExtendedInfo) {
               wallet = _.omit(wallet, walletExtendedKeys);
-              wallet.copayers = _.map(wallet.copayers, copayer => {
+              wallet.copayers = _.map(wallet.copayers, (copayer) => {
                 return _.omit(copayer, copayerExtendedKeys);
               });
             }
@@ -718,7 +718,7 @@ export class WalletService {
             next();
           });
         },
-        next => {
+        (next) => {
           opts.wallet = status.wallet;
           this.getBalance(opts, (err, balance) => {
             // ignore WALLET_NEED_SCAN err is includeExtendedInfo is given
@@ -736,14 +736,14 @@ export class WalletService {
             next();
           });
         },
-        next => {
+        (next) => {
           this.getPendingTxs(opts, (err, pendingTxps) => {
             if (err) return next(err);
             status.pendingTxps = pendingTxps;
             next();
           });
         },
-        next => {
+        (next) => {
           this.getPreferences({}, (err, preferences) => {
             if (err) return next(err);
             if (!opts.includeExtendedInfo) {
@@ -753,9 +753,9 @@ export class WalletService {
             status.preferences = preferences;
             next();
           });
-        }
+        },
       ],
-      err => {
+      (err) => {
         if (err) return cb(err);
         return cb(null, status);
       }
@@ -779,7 +779,7 @@ export class WalletService {
    * @param xPubKey
    */
   _verifyRequestPubKey(requestPubKey, signature, xPubKey) {
-    const pub = new Bitcore.HDPublicKey(xPubKey).deriveChild(Constants.PATHS.REQUEST_KEY_AUTH).publicKey;
+    const pub = new Astracore.HDPublicKey(xPubKey).deriveChild(Constants.PATHS.REQUEST_KEY_AUTH).publicKey;
     return Utils.verifyMessage(requestPubKey, signature, pub.toString());
   }
 
@@ -790,7 +790,7 @@ export class WalletService {
    * @param pubKeys
    */
   _getSigningKey(text, signature, pubKeys) {
-    return _.find(pubKeys, item => {
+    return _.find(pubKeys, (item) => {
       return this._verifySignature(text, signature, item.key);
     });
   }
@@ -812,7 +812,7 @@ export class WalletService {
 
     // this.logi('Notification', type);
 
-    cb = cb || function() {};
+    cb = cb || function () {};
 
     const walletId = this.walletId || data.walletId;
     const copayerId = this.copayerId || data.copayerId;
@@ -824,7 +824,7 @@ export class WalletService {
       data,
       ticker: this.notifyTicker++,
       creatorId: opts.isGlobal ? null : copayerId,
-      walletId
+      walletId,
     });
 
     this.storage.storeNotification(walletId, notification, () => {
@@ -844,7 +844,7 @@ export class WalletService {
         txProposalId: txp.id,
         creatorId: txp.creatorId,
         amount: txp.getTotalAmount(),
-        message: txp.message
+        message: txp.message,
       },
       extraArgs
     );
@@ -860,7 +860,7 @@ export class WalletService {
       requestPubKey: opts.requestPubKey,
       signature: opts.copayerSignature,
       customData: opts.customData,
-      derivationStrategy: wallet.derivationStrategy
+      derivationStrategy: wallet.derivationStrategy,
     });
 
     this.storage.fetchCopayerLookup(copayer.id, (err, res) => {
@@ -870,48 +870,48 @@ export class WalletService {
       if (opts.dryRun)
         return cb(null, {
           copayerId: null,
-          wallet
+          wallet,
         });
 
       wallet.addCopayer(copayer);
-      this.storage.storeWalletAndUpdateCopayersLookup(wallet, err => {
+      this.storage.storeWalletAndUpdateCopayersLookup(wallet, (err) => {
         if (err) return cb(err);
 
         async.series(
           [
-            next => {
+            (next) => {
               this._notify(
                 'NewCopayer',
                 {
                   walletId: opts.walletId,
                   copayerId: copayer.id,
-                  copayerName: copayer.name
+                  copayerName: copayer.name,
                 },
                 {},
                 next
               );
             },
-            next => {
+            (next) => {
               if (wallet.isComplete() && wallet.isShared()) {
                 this._notify(
                   'WalletComplete',
                   {
-                    walletId: opts.walletId
+                    walletId: opts.walletId,
                   },
                   {
-                    isGlobal: true
+                    isGlobal: true,
                   },
                   next
                 );
               } else {
                 next();
               }
-            }
+            },
           ],
           () => {
             return cb(null, {
               copayerId: copayer.id,
-              wallet
+              wallet,
             });
           }
         );
@@ -921,12 +921,12 @@ export class WalletService {
 
   _addKeyToCopayer(wallet, copayer, opts, cb) {
     wallet.addCopayerRequestKey(copayer.copayerId, opts.requestPubKey, opts.signature, opts.restrictions, opts.name);
-    this.storage.storeWalletAndUpdateCopayersLookup(wallet, err => {
+    this.storage.storeWalletAndUpdateCopayersLookup(wallet, (err) => {
       if (err) return cb(err);
 
       return cb(null, {
         copayerId: copayer.id,
-        wallet
+        wallet,
       });
     });
   }
@@ -953,7 +953,7 @@ export class WalletService {
         if (err) return cb(err);
         if (!wallet) return cb(Errors.NOT_AUTHORIZED);
 
-        const xPubKey = wallet.copayers.find(c => c.id === opts.copayerId).xPubKey;
+        const xPubKey = wallet.copayers.find((c) => c.id === opts.copayerId).xPubKey;
 
         if (!this._verifyRequestPubKey(opts.requestPubKey, opts.signature, xPubKey)) {
           return cb(Errors.NOT_AUTHORIZED);
@@ -1022,7 +1022,7 @@ export class WalletService {
 
     let xPubKey;
     try {
-      xPubKey = Bitcore.HDPublicKey(opts.xPubKey);
+      xPubKey = Astracore.HDPublicKey(opts.xPubKey);
     } catch (ex) {
       return cb(new ClientError('Invalid extended public key'));
     }
@@ -1031,7 +1031,7 @@ export class WalletService {
     }
 
     this.walletId = opts.walletId;
-    this._runLocked(cb, cb => {
+    this._runLocked(cb, (cb) => {
       this.storage.fetchWallet(opts.walletId, (err, wallet) => {
         if (err) return cb(err);
         if (!wallet) return cb(Errors.WALLET_NOT_FOUND);
@@ -1094,7 +1094,7 @@ export class WalletService {
 
         if (
           _.find(wallet.copayers, {
-            xPubKey: opts.xPubKey
+            xPubKey: opts.xPubKey,
           })
         )
           return cb(Errors.COPAYER_IN_WALLET);
@@ -1121,40 +1121,40 @@ export class WalletService {
         name: 'email',
         isValid(value) {
           return EmailValidator.validate(value);
-        }
+        },
       },
       {
         name: 'language',
         isValid(value) {
           return _.isString(value) && value.length == 2;
-        }
+        },
       },
       {
         name: 'unit',
         isValid(value) {
           return _.isString(value) && _.includes(['btc', 'bit'], value.toLowerCase());
-        }
+        },
       },
       {
         name: 'tokenAddresses',
         isValid(value) {
-          return _.isArray(value) && value.every(x => Validation.validateAddress('eth', 'mainnet', x));
-        }
+          return _.isArray(value) && value.every((x) => Validation.validateAddress('eth', 'mainnet', x));
+        },
       },
       {
         name: 'multisigEthInfo',
         isValid(value) {
           return (
             _.isArray(value) &&
-            value.every(x => Validation.validateAddress('eth', 'mainnet', x.multisigContractAddress))
+            value.every((x) => Validation.validateAddress('eth', 'mainnet', x.multisigContractAddress))
           );
-        }
-      }
+        },
+      },
     ];
 
     opts = _.pick(opts, _.map(preferences, 'name'));
     try {
-      _.each(preferences, preference => {
+      _.each(preferences, (preference) => {
         const value = opts[preference.name];
         if (!value) return;
         if (!preference.isValid(value)) {
@@ -1173,13 +1173,13 @@ export class WalletService {
         opts.multisigEthInfo = null;
       }
 
-      this._runLocked(cb, cb => {
+      this._runLocked(cb, (cb) => {
         this.storage.fetchPreferences(this.walletId, this.copayerId, (err, oldPref) => {
           if (err) return cb(err);
 
           const newPref = Preferences.create({
             walletId: this.walletId,
-            copayerId: this.copayerId
+            copayerId: this.copayerId,
           });
           const preferences = Preferences.fromObj(_.defaults(newPref, opts, oldPref));
 
@@ -1200,7 +1200,7 @@ export class WalletService {
             );
           }
 
-          this.storage.storePreferences(preferences, err => {
+          this.storage.storePreferences(preferences, (err) => {
             return cb(err);
           });
         });
@@ -1225,11 +1225,11 @@ export class WalletService {
 
     this.storage.fetchAddresses(this.walletId, (err, addresses: IAddress[]) => {
       if (err) return cb(err);
-      const latestAddresses = addresses.filter(x => !x.isChange).slice(-Defaults.MAX_MAIN_ADDRESS_GAP) as IAddress[];
+      const latestAddresses = addresses.filter((x) => !x.isChange).slice(-Defaults.MAX_MAIN_ADDRESS_GAP) as IAddress[];
       if (
         latestAddresses.length < Defaults.MAX_MAIN_ADDRESS_GAP ||
         _.some(latestAddresses, {
-          hasActivity: true
+          hasActivity: true,
         })
       )
         return cb(null, true);
@@ -1242,20 +1242,20 @@ export class WalletService {
         () => {
           return i > 0 && !activityFound;
         },
-        next => {
+        (next) => {
           bc.getAddressActivity(latestAddresses[--i].address, (err, res) => {
             if (err) return next(err);
             activityFound = !!res;
             return next();
           });
         },
-        err => {
+        (err) => {
           if (err) return cb(err);
           if (!activityFound) return cb(null, false);
 
           const address = latestAddresses[i];
           address.hasActivity = true;
-          this.storage.storeAddress(address, err => {
+          this.storage.storeAddress(address, (err) => {
             return cb(err, true);
           });
         }
@@ -1270,7 +1270,7 @@ export class WalletService {
       if (err) return cb(err);
       this.syncWallet(
         wallet,
-        err2 => {
+        (err2) => {
           if (err2) {
             this.logw('Error syncing v8 addresses: ', err2);
           }
@@ -1314,7 +1314,7 @@ export class WalletService {
           this._notify(
             'NewAddress',
             {
-              address: address.address
+              address: address.address,
             },
             () => {
               return cb(null, address);
@@ -1351,7 +1351,7 @@ export class WalletService {
 
         this._runLocked(
           cb,
-          cb => {
+          (cb) => {
             this.getWallet({ doNotMigrate: opts.doNotMigrate }, (err, wallet) => {
               if (err) return cb(err);
               if (!wallet.isComplete()) return cb(Errors.WALLET_NOT_COMPLETE);
@@ -1384,13 +1384,13 @@ export class WalletService {
     this.storage.fetchAddresses(this.walletId, (err, addresses) => {
       if (err) return cb(err);
       let onlyMain = _.reject(addresses, {
-        isChange: true
+        isChange: true,
       });
       if (opts.reverse) onlyMain.reverse();
       if (opts.limit > 0) onlyMain = _.take(onlyMain, opts.limit);
 
       this.getWallet({}, (err, wallet) => {
-        _.each(onlyMain, x => {
+        _.each(onlyMain, (x) => {
           ChainService.addressFromStorageTransform(wallet.coin, wallet.network, x);
         });
         return cb(null, onlyMain);
@@ -1453,14 +1453,14 @@ export class WalletService {
   getUtxosForCurrentWallet(opts, cb) {
     opts = opts || {};
 
-    const utxoKey = utxo => {
+    const utxoKey = (utxo) => {
       return utxo.txid + '|' + utxo.vout;
     };
 
     let coin, allAddresses, allUtxos, utxoIndex, addressStrs, bc, wallet;
     async.series(
       [
-        next => {
+        (next) => {
           this.getWallet({}, (err, w) => {
             if (err) return next(err);
 
@@ -1475,7 +1475,7 @@ export class WalletService {
             return next();
           });
         },
-        next => {
+        (next) => {
           if (_.isArray(opts.addresses)) {
             allAddresses = opts.addresses;
             return next();
@@ -1483,7 +1483,7 @@ export class WalletService {
 
           // even with Grouping we need address for pubkeys and path (see last step)
           this.storage.fetchAddresses(this.walletId, (err, addresses) => {
-            _.each(addresses, x => {
+            _.each(addresses, (x) => {
               ChainService.addressFromStorageTransform(wallet.coin, wallet.network, x);
             });
             allAddresses = addresses;
@@ -1492,23 +1492,23 @@ export class WalletService {
             return next();
           });
         },
-        next => {
+        (next) => {
           addressStrs = _.map(allAddresses, 'address');
           return next();
         },
-        next => {
+        (next) => {
           if (!wallet.isComplete()) return next();
 
           this._getBlockchainHeight(wallet.coin, wallet.network, (err, height, hash) => {
             if (err) return next(err);
 
-            const dustThreshold = Bitcore_[wallet.coin].Transaction.DUST_AMOUNT;
+            const dustThreshold = Astracore_[wallet.coin].Transaction.DUST_AMOUNT;
             bc.getUtxos(wallet, height, (err, utxos) => {
               if (err) return next(err);
               if (utxos.length == 0) return cb(null, []);
 
               // filter out DUST
-              allUtxos = _.filter(utxos, x => {
+              allUtxos = _.filter(utxos, (x) => {
                 return x.satoshis >= dustThreshold;
               });
 
@@ -1517,12 +1517,12 @@ export class WalletService {
             });
           });
         },
-        next => {
+        (next) => {
           this.getPendingTxs({}, (err, txps) => {
             if (err) return next(err);
 
             const lockedInputs = _.map(_.flatten(_.map(txps, 'inputs')), utxoKey);
-            _.each(lockedInputs, input => {
+            _.each(lockedInputs, (input) => {
               if (utxoIndex[input]) {
                 utxoIndex[input].locked = true;
               }
@@ -1531,7 +1531,7 @@ export class WalletService {
             return next();
           });
         },
-        next => {
+        (next) => {
           const now = Math.floor(Date.now() / 1000);
           // Fetch latest broadcasted txs and remove any spent inputs from the
           // list of UTXOs returned by the block explorer. This counteracts any out-of-sync
@@ -1541,28 +1541,28 @@ export class WalletService {
             this.walletId,
             {
               minTs: now - 24 * 3600,
-              limit: 100
+              limit: 100,
             },
             (err, txs) => {
               if (err) return next(err);
               const spentInputs = _.map(_.flatten(_.map(txs, 'inputs')), utxoKey);
-              _.each(spentInputs, input => {
+              _.each(spentInputs, (input) => {
                 if (utxoIndex[input]) {
                   utxoIndex[input].spent = true;
                 }
               });
               allUtxos = _.reject(allUtxos, {
-                spent: true
+                spent: true,
               });
               logger.debug(`Got ${allUtxos.length} usable UTXOs`);
               return next();
             }
           );
         },
-        next => {
+        (next) => {
           // Needed for the clients to sign UTXOs
           const addressToPath = _.keyBy(allAddresses, 'address');
-          _.each(allUtxos, utxo => {
+          _.each(allUtxos, (utxo) => {
             if (!addressToPath[utxo.address]) {
               if (!opts.addresses) this.logw('Ignored UTXO!: ' + utxo.address);
               return;
@@ -1571,7 +1571,7 @@ export class WalletService {
             utxo.publicKeys = addressToPath[utxo.address].publicKeys;
           });
           return next();
-        }
+        },
       ],
       (err: any) => {
         // TODO`
@@ -1608,7 +1608,7 @@ export class WalletService {
         }
 
         const address = opts.addresses[0];
-        const A = Bitcore_[wallet.coin].Address;
+        const A = Astracore_[wallet.coin].Address;
         let addrObj: { network?: { name?: string } } = {};
         try {
           addrObj = new A(address);
@@ -1646,7 +1646,7 @@ export class WalletService {
         // this prevents old BWC clients to break
         return cb(null, {
           inputs: [],
-          outputs: []
+          outputs: [],
         });
       }
       const bc = this._getBlockchainExplorer(wallet.coin, wallet.network);
@@ -1675,7 +1675,7 @@ export class WalletService {
     }
     let wallet = opts.wallet;
 
-    const setWallet = cb1 => {
+    const setWallet = (cb1) => {
       if (wallet) return cb1();
       this.getWallet({}, (err, ret) => {
         if (err) return cb(err);
@@ -1692,12 +1692,12 @@ export class WalletService {
           totalConfirmedAmount: 0,
           lockedConfirmedAmount: 0,
           availableAmount: 0,
-          availableConfirmedAmount: 0
+          availableConfirmedAmount: 0,
         };
         return cb(null, emptyBalance);
       }
 
-      this.syncWallet(wallet, err => {
+      this.syncWallet(wallet, (err) => {
         if (err) return cb(err);
         return ChainService.getWalletBalance(this, wallet, opts, cb);
       });
@@ -1731,7 +1731,7 @@ export class WalletService {
       if (opts.feeLevel) {
         if (
           !_.some(feeLevels, {
-            name: opts.feeLevel
+            name: opts.feeLevel,
           })
         )
           return cb(new ClientError('Invalid fee level. Valid values are ' + _.map(feeLevels, 'name').join(', ')));
@@ -1757,7 +1757,7 @@ export class WalletService {
 
       const failed = [];
       const levels = _.fromPairs(
-        _.map(points, p => {
+        _.map(points, (p) => {
           const feePerKb = _.isObject(result) && result[p] && _.isNumber(result[p]) ? +result[p] : -1;
           if (feePerKb < 0) failed.push(p);
 
@@ -1804,7 +1804,7 @@ export class WalletService {
         const definedPoints = _.uniq(_.map(feeLevels, 'nbBlocks'));
         return _.uniq(
           _.flatten(
-            _.map(definedPoints, p => {
+            _.map(definedPoints, (p) => {
               return _.range(p, p + Defaults.FEE_LEVELS_FALLBACK + 1);
             })
           )
@@ -1817,7 +1817,7 @@ export class WalletService {
         if (feeSamples[n] >= 0) {
           result = {
             nbBlocks: n,
-            feePerKb: feeSamples[n]
+            feePerKb: feeSamples[n],
           };
         } else {
           if (fallback > 0) {
@@ -1825,7 +1825,7 @@ export class WalletService {
           } else {
             result = {
               feePerKb: level.defaultValue,
-              nbBlocks: null
+              nbBlocks: null,
             };
           }
         }
@@ -1840,13 +1840,13 @@ export class WalletService {
           }
         }
 
-        const values = _.map(feeLevels, level => {
+        const values = _.map(feeLevels, (level) => {
           const result: {
             feePerKb?: number;
             nbBlocks?: number;
             level: string;
           } = {
-            level: level.name
+            level: level.name,
           };
           if (err) {
             result.feePerKb = level.defaultValue;
@@ -1869,7 +1869,7 @@ export class WalletService {
           return cb(null, values);
         }
 
-        this.storage.storeGlobalCache(cacheKey, values, err => {
+        this.storage.storeGlobalCache(cacheKey, values, (err) => {
           if (err) {
             this.logw('Could not store fee level cache');
           }
@@ -1886,7 +1886,7 @@ export class WalletService {
       if (!txs.length) return cb(null, true);
 
       const lastRejections = _.takeWhile(txs, {
-        status: 'rejected'
+        status: 'rejected',
       });
 
       const exceededRejections = lastRejections.length - Defaults.BACKOFF_OFFSET;
@@ -1935,7 +1935,7 @@ export class WalletService {
   _validateAndSanitizeTxOpts(wallet, opts, cb) {
     async.series(
       [
-        next => {
+        (next) => {
           const feeArgs =
             boolToNum(!!opts.feeLevel) + boolToNum(_.isNumber(opts.feePerKb)) + boolToNum(_.isNumber(opts.fee));
           if (feeArgs > 1) return next(new ClientError('Only one of feeLevel/feePerKb/fee can be specified'));
@@ -1948,7 +1948,7 @@ export class WalletService {
           if (opts.feeLevel) {
             if (
               !_.some(feeLevels, {
-                name: opts.feeLevel
+                name: opts.feeLevel,
               })
             )
               return next(
@@ -1962,13 +1962,13 @@ export class WalletService {
           }
           next();
         },
-        next => {
+        (next) => {
           if (wallet.singleAddress && opts.changeAddress)
             return next(new ClientError('Cannot specify change address on single-address wallet'));
           next();
         },
 
-        next => {
+        (next) => {
           if (!opts.sendMax) return next();
           if (!_.isArray(opts.outputs) || opts.outputs.length > 1) {
             return next(new ClientError('Only one output allowed when sendMax is specified'));
@@ -1984,7 +1984,7 @@ export class WalletService {
             {
               feePerKb: opts.feePerKb,
               excludeUnconfirmedUtxos: !!opts.excludeUnconfirmedUtxos,
-              returnInputs: true
+              returnInputs: true,
             },
             (err, info) => {
               if (err) return next(err);
@@ -1994,7 +1994,7 @@ export class WalletService {
             }
           );
         },
-        next => {
+        (next) => {
           if (opts.validateOutputs === false) return next();
           const validationError = this._validateOutputs(opts, wallet, next);
           if (validationError) {
@@ -2002,32 +2002,32 @@ export class WalletService {
           }
           next();
         },
-        next => {
+        (next) => {
           // check outputs are on 'copay' format for BCH
           if (wallet.coin != 'bch') return next();
           if (!opts.noCashAddr) return next();
 
           // TODO remove one cashaddr is used internally (noCashAddr flag)?
-          opts.origAddrOutputs = _.map(opts.outputs, x => {
+          opts.origAddrOutputs = _.map(opts.outputs, (x) => {
             const ret: {
               toAddress?: string;
               amount?: number;
               message?: string;
             } = {
               toAddress: x.toAddress,
-              amount: x.amount
+              amount: x.amount,
             };
             if (x.message) ret.message = x.message;
 
             return ret;
           });
           opts.returnOrigAddrOutputs = false;
-          _.each(opts.outputs, x => {
+          _.each(opts.outputs, (x) => {
             if (!x.toAddress) return;
 
             let newAddr;
             try {
-              newAddr = Bitcore_['bch'].Address(x.toAddress).toLegacyAddress();
+              newAddr = Astracore_['bch'].Address(x.toAddress).toLegacyAddress();
             } catch (e) {
               return next(e);
             }
@@ -2037,7 +2037,7 @@ export class WalletService {
             }
           });
           next();
-        }
+        },
       ],
       cb
     );
@@ -2048,11 +2048,11 @@ export class WalletService {
     this.getFeeLevels(
       {
         coin: wallet.coin,
-        network: wallet.network
+        network: wallet.network,
       },
       (err, levels) => {
         if (err) return cb(err);
-        const level = levels.find(l => l.level === opts.feeLevel);
+        const level = levels.find((l) => l.level === opts.feeLevel);
         if (!level) {
           const msg = 'Could not compute fee for "' + opts.feeLevel + '" level';
           this.logw(msg);
@@ -2169,7 +2169,7 @@ export class WalletService {
 
     this._runLocked(
       cb,
-      cb => {
+      (cb) => {
         let changeAddress, feePerKb, gasPrice, gasLimit, fee;
         this.getWallet({}, (err, wallet) => {
           if (err) return cb(err);
@@ -2183,7 +2183,7 @@ export class WalletService {
 
             async.series(
               [
-                next => {
+                (next) => {
                   if (ChainService.isUTXOCoin(wallet.coin)) return next();
                   this.getMainAddresses({ reverse: true, limit: 1 }, (err, mainAddr) => {
                     if (err) return next(err);
@@ -2191,17 +2191,17 @@ export class WalletService {
                     next();
                   });
                 },
-                next => {
+                (next) => {
                   this._validateAndSanitizeTxOpts(wallet, opts, next);
                 },
-                next => {
+                (next) => {
                   this._canCreateTx((err, canCreate) => {
                     if (err) return next(err);
                     if (!canCreate) return next(Errors.TX_CANNOT_CREATE);
                     next();
                   });
                 },
-                async next => {
+                async (next) => {
                   if (opts.sendMax) return next();
                   try {
                     changeAddress = await ChainService.getChangeAddress(this, wallet, opts);
@@ -2210,7 +2210,7 @@ export class WalletService {
                   }
                   return next();
                 },
-                async next => {
+                async (next) => {
                   if (_.isNumber(opts.fee) && !_.isEmpty(opts.inputs)) return next();
 
                   try {
@@ -2220,7 +2220,7 @@ export class WalletService {
                   }
                   next();
                 },
-                async next => {
+                async (next) => {
                   try {
                     opts.nonce = await ChainService.getTransactionCount(this, wallet, opts.from);
                   } catch (error) {
@@ -2228,7 +2228,7 @@ export class WalletService {
                   }
                   return next();
                 },
-                async next => {
+                async (next) => {
                   opts.signingMethod = opts.signingMethod || 'ecdsa';
                   opts.coin = opts.coin || wallet.coin;
 
@@ -2241,7 +2241,7 @@ export class WalletService {
 
                   return next();
                 },
-                next => {
+                (next) => {
                   let txOptsFee = fee;
 
                   if (!txOptsFee) {
@@ -2285,20 +2285,20 @@ export class WalletService {
                     multisigContractAddress: opts.multisigContractAddress,
                     destinationTag: opts.destinationTag,
                     invoiceID: opts.invoiceID,
-                    signingMethod: opts.signingMethod
+                    signingMethod: opts.signingMethod,
                   };
                   txp = TxProposal.create(txOpts);
                   next();
                 },
-                next => {
+                (next) => {
                   return ChainService.selectTxInputs(this, txp, wallet, opts, next);
                 },
-                next => {
+                (next) => {
                   if (!changeAddress || wallet.singleAddress || opts.dryRun || opts.changeAddress) return next();
 
                   this._store(wallet, txp.changeAddress, next, true);
                 },
-                next => {
+                (next) => {
                   if (opts.dryRun) return next();
 
                   if (txp.coin == 'bch') {
@@ -2308,9 +2308,9 @@ export class WalletService {
                   }
 
                   this.storage.storeTx(wallet.id, txp, next);
-                }
+                },
               ],
-              err => {
+              (err) => {
                 if (err) return cb(err);
 
                 if (txp.coin == 'bch') {
@@ -2339,7 +2339,7 @@ export class WalletService {
   publishTx(opts, cb) {
     if (!checkRequired(opts, ['txProposalId', 'proposalSignature'], cb)) return;
 
-    this._runLocked(cb, cb => {
+    this._runLocked(cb, (cb) => {
       this.getWallet({}, (err, wallet) => {
         if (err) return cb(err);
 
@@ -2368,10 +2368,10 @@ export class WalletService {
             txp.proposalSignaturePubKeySig = signingKey.signature;
           }
 
-          ChainService.checkTxUTXOs(this, txp, opts, err => {
+          ChainService.checkTxUTXOs(this, txp, opts, (err) => {
             if (err) return cb(err);
             txp.status = 'pending';
-            this.storage.storeTx(this.walletId, txp, err => {
+            this.storage.storeTx(this.walletId, txp, (err) => {
               if (err) return cb(err);
 
               this._notifyTxProposalAction('NewTxProposal', txp, () => {
@@ -2421,7 +2421,7 @@ export class WalletService {
   editTxNote(opts, cb) {
     if (!checkRequired(opts, 'txid', cb)) return;
 
-    this._runLocked(cb, cb => {
+    this._runLocked(cb, (cb) => {
       this.storage.fetchTxNote(this.walletId, opts.txid, (err, note) => {
         if (err) return cb(err);
 
@@ -2430,12 +2430,12 @@ export class WalletService {
             walletId: this.walletId,
             txid: opts.txid,
             copayerId: this.copayerId,
-            body: opts.body
+            body: opts.body,
           });
         } else {
           note.edit(opts.body, this.copayerId);
         }
-        this.storage.storeTxNote(note, err => {
+        this.storage.storeTxNote(note, (err) => {
           if (err) return cb(err);
           this.storage.fetchTxNote(this.walletId, opts.txid, cb);
         });
@@ -2471,7 +2471,7 @@ export class WalletService {
    * @return {undefined}
    */
   removeWallet(opts, cb) {
-    this._runLocked(cb, cb => {
+    this._runLocked(cb, (cb) => {
       this.storage.removeWallet(this.walletId, cb);
     });
   }
@@ -2502,10 +2502,10 @@ export class WalletService {
   removePendingTx(opts, cb) {
     if (!checkRequired(opts, ['txProposalId'], cb)) return;
 
-    this._runLocked(cb, cb => {
+    this._runLocked(cb, (cb) => {
       this.getTx(
         {
-          txProposalId: opts.txProposalId
+          txProposalId: opts.txProposalId,
         },
         (err, txp) => {
           if (err) return cb(err);
@@ -2578,7 +2578,7 @@ export class WalletService {
 
       this.getTx(
         {
-          txProposalId: opts.txProposalId
+          txProposalId: opts.txProposalId,
         },
         (err, txp) => {
           if (err) return cb(err);
@@ -2593,7 +2593,7 @@ export class WalletService {
           }
 
           const action = _.find(txp.actions, {
-            copayerId: this.copayerId
+            copayerId: this.copayerId,
           });
           if (action) return cb(Errors.COPAYER_VOTED);
           if (!txp.isPending()) return cb(Errors.TX_NOT_PENDING);
@@ -2608,7 +2608,7 @@ export class WalletService {
               this.logw('Client version:', this.clientVersion);
               this.logw('Arguments:', JSON.stringify(opts));
               this.logw('Transaction proposal:', JSON.stringify(txp));
-              const raw = ChainService.getBitcoreTx(txp).uncheckedSerialize();
+              const raw = ChainService.getAstracoreTx(txp).uncheckedSerialize();
               this.logw('Raw tx:', raw);
               return cb(Errors.BAD_SIGNATURES);
             }
@@ -2617,28 +2617,28 @@ export class WalletService {
             return cb(ex);
           }
 
-          this.storage.storeTx(this.walletId, txp, err => {
+          this.storage.storeTx(this.walletId, txp, (err) => {
             if (err) return cb(err);
 
             async.series(
               [
-                next => {
+                (next) => {
                   this._notifyTxProposalAction(
                     'TxProposalAcceptedBy',
                     txp,
                     {
-                      copayerId: this.copayerId
+                      copayerId: this.copayerId,
                     },
                     next
                   );
                 },
-                next => {
+                (next) => {
                   if (txp.isAccepted()) {
                     this._notifyTxProposalAction('TxProposalFinallyAccepted', txp, next);
                   } else {
                     next();
                   }
-                }
+                },
               ],
               () => {
                 return cb(null, txp);
@@ -2655,11 +2655,11 @@ export class WalletService {
     opts = opts || {};
 
     txp.setBroadcasted();
-    this.storage.storeTx(this.walletId, txp, err => {
+    this.storage.storeTx(this.walletId, txp, (err) => {
       if (err) return cb(err);
 
       const extraArgs = {
-        txid: txp.txid
+        txid: txp.txid,
       };
       if (opts.byThirdParty) {
         this._notifyTxProposalAction('NewOutgoingTxByThirdParty', txp, extraArgs);
@@ -2684,7 +2684,7 @@ export class WalletService {
 
       this.getTx(
         {
-          txProposalId: opts.txProposalId
+          txProposalId: opts.txProposalId,
         },
         (err, txp) => {
           if (err) return cb(err);
@@ -2715,7 +2715,7 @@ export class WalletService {
                 this._processBroadcast(
                   txp,
                   {
-                    byThirdParty: true
+                    byThirdParty: true,
                   },
                   cb
                 );
@@ -2724,9 +2724,9 @@ export class WalletService {
               this._processBroadcast(
                 txp,
                 {
-                  byThirdParty: false
+                  byThirdParty: false,
                 },
-                err => {
+                (err) => {
                   if (err) return cb(err);
                   return cb(null, txp);
                 }
@@ -2749,13 +2749,13 @@ export class WalletService {
 
     this.getTx(
       {
-        txProposalId: opts.txProposalId
+        txProposalId: opts.txProposalId,
       },
       (err, txp) => {
         if (err) return cb(err);
 
         const action = _.find(txp.actions, {
-          copayerId: this.copayerId
+          copayerId: this.copayerId,
         });
 
         if (action) return cb(Errors.COPAYER_VOTED);
@@ -2763,26 +2763,26 @@ export class WalletService {
 
         txp.reject(this.copayerId, opts.reason);
 
-        this.storage.storeTx(this.walletId, txp, err => {
+        this.storage.storeTx(this.walletId, txp, (err) => {
           if (err) return cb(err);
 
           async.series(
             [
-              next => {
+              (next) => {
                 this._notifyTxProposalAction(
                   'TxProposalRejectedBy',
                   txp,
                   {
-                    copayerId: this.copayerId
+                    copayerId: this.copayerId,
                   },
                   next
                 );
               },
-              next => {
+              (next) => {
                 if (txp.status == 'rejected') {
                   const rejectedBy = _.map(
                     _.filter(txp.actions, {
-                      type: 'reject'
+                      type: 'reject',
                     }),
                     'copayerId'
                   );
@@ -2791,14 +2791,14 @@ export class WalletService {
                     'TxProposalFinallyRejected',
                     txp,
                     {
-                      rejectedBy
+                      rejectedBy,
                     },
                     next
                   );
                 } else {
                   next();
                 }
-              }
+              },
             ],
             () => {
               return cb(null, txp);
@@ -2833,7 +2833,7 @@ export class WalletService {
       this.storage.fetchPendingTxs(this.walletId, (err, txps) => {
         if (err) return cb(err);
 
-        _.each(txps, txp => {
+        _.each(txps, (txp) => {
           txp.deleteLockTime = this.getRemainingDeleteLockTime(txp);
         });
 
@@ -2847,23 +2847,23 @@ export class WalletService {
               this._processBroadcast(
                 txp,
                 {
-                  byThirdParty: true
+                  byThirdParty: true,
                 },
                 next
               );
             });
           },
-          err => {
-            txps = _.reject(txps, txp => {
+          (err) => {
+            txps = _.reject(txps, (txp) => {
               return txp.status == 'broadcasted';
             });
 
             if (opts.noCashAddr && txps[0] && txps[0].coin == 'bch') {
-              _.each(txps, x => {
+              _.each(txps, (x) => {
                 if (x.changeAddress) {
                   x.changeAddress.address = BCHAddressTranslator.translate(x.changeAddress.address, 'copay');
                 }
-                _.each(x.outputs, x => {
+                _.each(x.outputs, (x) => {
                   if (x.toAddress) {
                     x.toAddress = BCHAddressTranslator.translate(x.toAddress, 'copay');
                   }
@@ -2945,7 +2945,7 @@ export class WalletService {
     const moves: { [txid: string]: ITxProposal } = {};
 
     // remove 'fees' and 'moves' (probably change addresses)
-    txs = _.filter(txs, tx => {
+    txs = _.filter(txs, (tx) => {
       // double spend or error
       // This should be shown on the client, so we dont remove it here
       //    if (tx.height && tx.height <= -3)
@@ -2956,7 +2956,7 @@ export class WalletService {
 
         const output = {
           address: tx.address,
-          amount: Math.abs(tx.satoshis)
+          amount: Math.abs(tx.satoshis),
         };
         if (seenReceive[tx.txid]) {
           seenReceive[tx.txid].outputs.push(output);
@@ -2970,7 +2970,7 @@ export class WalletService {
       if (tx.category == 'send') {
         const output = {
           address: tx.address,
-          amount: Math.abs(tx.satoshis)
+          amount: Math.abs(tx.satoshis),
         };
         if (seenSend[tx.txid]) {
           seenSend[tx.txid].outputs.push(output);
@@ -2986,7 +2986,7 @@ export class WalletService {
       if (tx.category == 'move' && !indexedSend[tx.txid]) {
         const output = {
           address: tx.address,
-          amount: Math.abs(tx.satoshis)
+          amount: Math.abs(tx.satoshis),
         };
 
         if (moves[tx.txid]) {
@@ -3009,7 +3009,7 @@ export class WalletService {
       }
     });
 
-    const fixMoves = cb2 => {
+    const fixMoves = (cb2) => {
       if (_.isEmpty(moves)) return cb2();
 
       // each detected duplicate output move
@@ -3019,8 +3019,8 @@ export class WalletService {
         if (err) return cb(err);
 
         const isChangeAddress = _.countBy(_.filter(addrs, { isChange: true }), 'address');
-        _.each(moves, x => {
-          _.remove(x.outputs, i => {
+        _.each(moves, (x) => {
+          _.remove(x.outputs, (i) => {
             return isChangeAddress[i.address];
           });
         });
@@ -3028,11 +3028,11 @@ export class WalletService {
       });
     };
 
-    fixMoves(err => {
+    fixMoves((err) => {
       if (err) return cb(err);
 
       const ret = _.filter(
-        _.map([].concat(txs), tx => {
+        _.map([].concat(txs), (tx) => {
           const t = new Date(tx.blockTime).getTime() / 1000;
           const c = tx.height >= 0 && bcHeight >= tx.height ? bcHeight - tx.height + 1 : 0;
           const ret = {
@@ -3047,7 +3047,7 @@ export class WalletService {
             action: undefined,
             addressTo: undefined,
             outputs: undefined,
-            dust: false
+            dust: false,
           };
           switch (tx.category) {
             case 'send':
@@ -3078,7 +3078,7 @@ export class WalletService {
 
           // filter out dust
         }),
-        x => {
+        (x) => {
           return !x.dust;
         }
       );
@@ -3108,7 +3108,7 @@ export class WalletService {
           return cb(err || 'wrong height');
         }
 
-        this.storage.storeGlobalCache(cacheKey, values, err => {
+        this.storage.storeGlobalCache(cacheKey, values, (err) => {
           if (err) {
             this.logw('Could not store bc heigth cache');
           }
@@ -3132,12 +3132,12 @@ export class WalletService {
     const bc = this._getBlockchainExplorer(wallet.coin, wallet.network);
 
     this.logd('Registering wallet');
-    bc.register(wallet, err => {
+    bc.register(wallet, (err) => {
       if (err) {
         return cb(err);
       }
       wallet.beRegistered = true;
-      return this.storage.storeWallet(wallet, err => cb(err, true));
+      return this.storage.storeWallet(wallet, (err) => cb(err, true));
     });
   }
 
@@ -3160,7 +3160,7 @@ export class WalletService {
         bc.getCheckData(wallet, (err, serverCheck) => {
           // If there is an error, just ignore it (server does not support walletCheck)
           if (err) {
-            this.logw('Error at bitcore WalletCheck, ignoring' + err);
+            this.logw('Error at astracore WalletCheck, ignoring' + err);
             return cb();
           }
 
@@ -3173,7 +3173,7 @@ export class WalletService {
             return cb(null, isOK);
           }
 
-          this.storage.setWalletAddressChecked(wallet.id, totalAddresses, err => {
+          this.storage.setWalletAddressChecked(wallet.id, totalAddresses, (err) => {
             return cb(null, isOK);
           });
         });
@@ -3211,19 +3211,19 @@ export class WalletService {
               return icb();
             }
 
-            const addressStr = _.map(addresses, x => {
+            const addressStr = _.map(addresses, (x) => {
               ChainService.addressFromStorageTransform(wallet.coin, wallet.network, x);
               return x.address;
             });
 
             this.logd('Syncing addresses: ', addressStr.length);
-            bc.addAddresses(wallet, addressStr, err => {
+            bc.addAddresses(wallet, addressStr, (err) => {
               if (err) return cb(err);
               this.storage.markSyncedAddresses(addressStr, icb);
             });
           };
 
-          syncAddr(addresses, err => {
+          syncAddr(addresses, (err) => {
             if (skipCheck || doNotCheckV8) return cb();
 
             this.checkWalletSync(bc, wallet, false, (err, isOK) => {
@@ -3262,14 +3262,14 @@ export class WalletService {
       return _.sumBy(_.filter(items, filter), 'amount');
     };
 
-    const classify = items => {
-      return _.map(items, item => {
+    const classify = (items) => {
+      return _.map(items, (item) => {
         const address = indexedAddresses[item.address];
         return {
           address: item.address,
           amount: item.amount,
           isMine: !!address,
-          isChange: address ? address.isChange || wallet.singleAddress : false
+          isChange: address ? address.isChange || wallet.singleAddress : false,
         };
       });
     };
@@ -3292,7 +3292,7 @@ export class WalletService {
 
       amount = Math.abs(amount);
       if (action == 'sent' || action == 'moved') {
-        const firstExternalOutput = outputs.find(o => o.isMine === false);
+        const firstExternalOutput = outputs.find((o) => o.isMine === false);
         addressTo = firstExternalOutput ? firstExternalOutput.address : null;
       }
 
@@ -3304,10 +3304,10 @@ export class WalletService {
       amount = 0;
     }
 
-    const formatOutput = o => {
+    const formatOutput = (o) => {
       return {
         amount: o.amount,
-        address: o.address
+        address: o.address,
       };
     };
 
@@ -3322,7 +3322,7 @@ export class WalletService {
       foreignCrafted,
       outputs: undefined,
       feePerKb: undefined,
-      inputs: undefined
+      inputs: undefined,
     };
 
     if (_.isNumber(tx.size) && tx.size > 0) {
@@ -3330,19 +3330,19 @@ export class WalletService {
     }
 
     if (opts.includeExtendedInfo) {
-      newTx.inputs = _.map(inputs, input => {
+      newTx.inputs = _.map(inputs, (input) => {
         return _.pick(input, 'address', 'amount', 'isMine');
       });
-      newTx.outputs = _.map(outputs, output => {
+      newTx.outputs = _.map(outputs, (output) => {
         return _.pick(output, 'address', 'amount', 'isMine');
       });
     } else {
       outputs = _.filter(outputs, {
-        isChange: false
+        isChange: false,
       });
       if (action == 'received') {
         outputs = _.filter(outputs, {
-          isMine: true
+          isMine: true,
         });
       }
       newTx.outputs = _.map(outputs, formatOutput);
@@ -3360,16 +3360,16 @@ export class WalletService {
       tx.proposalType = proposal.type;
       tx.creatorName = proposal.creatorName;
       tx.message = proposal.message;
-      tx.actions = _.map(proposal.actions, action => {
+      tx.actions = _.map(proposal.actions, (action) => {
         return _.pick(action, ['createdOn', 'type', 'copayerId', 'copayerName', 'comment']);
       });
-      _.each(tx.outputs, output => {
+      _.each(tx.outputs, (output) => {
         const query = {
           toAddress: output.address,
-          amount: output.amount
+          amount: output.amount,
         };
         if (proposal.outputs) {
-          const txpOut = proposal.outputs.find(o => o.toAddress === output.address && o.amount === output.amount);
+          const txpOut = proposal.outputs.find((o) => o.toAddress === output.address && o.amount === output.amount);
           output.message = txpOut ? txpOut.message : null;
         }
       });
@@ -3439,7 +3439,7 @@ export class WalletService {
 
     this._runLocked(
       cb,
-      cb => {
+      (cb) => {
         checkIfAdvertExistsAlready(opts.adId, (err, advert) => {
           if (err) throw err;
           if (advert) {
@@ -3510,7 +3510,7 @@ export class WalletService {
    * @param cb
    */
   getAllAdverts(opts, cb) {
-    this._runLocked(cb, cb => {
+    this._runLocked(cb, (cb) => {
       this.getAllAdverts(opts, cb);
     });
   }
@@ -3542,7 +3542,7 @@ export class WalletService {
     try {
       this._runLocked(
         cb,
-        cb => {
+        (cb) => {
           checkIfAdvertExistsAlready(opts.adId, (err, adId) => {
             if (err) throw err;
             this.storage.removeAdvert(adId, cb); // TODO: add to errordefinitions Errors.ADVERTISEMENT already exists
@@ -3582,24 +3582,24 @@ export class WalletService {
   }
 
   tagLowFeeTxs(wallet: IWallet, txs: any[], cb) {
-    const unconfirmed = txs.filter(tx => tx.confirmations === 0);
+    const unconfirmed = txs.filter((tx) => tx.confirmations === 0);
     if (_.isEmpty(unconfirmed)) return cb();
 
     this.getFeeLevels(
       {
         coin: wallet.coin,
-        network: wallet.network
+        network: wallet.network,
       },
       (err, levels) => {
         if (err) {
           this.logw('Could not fetch fee levels', err);
         } else {
-          const level = levels.find(l => l.level === 'superEconomy');
+          const level = levels.find((l) => l.level === 'superEconomy');
           if (!level || !level.nbBlocks) {
             this.logi('Cannot compute super economy fee level from blockchain');
           } else {
             const minFeePerKb = level.feePerKb;
-            _.each(unconfirmed, tx => {
+            _.each(unconfirmed, (tx) => {
               tx.lowFees = tx.feePerKb < minFeePerKb;
             });
           }
@@ -3635,11 +3635,11 @@ export class WalletService {
 
     async.series(
       [
-        next => {
+        (next) => {
           // be sure the wallet is onsync
           this.syncWallet(wallet, next, true);
         },
-        next => {
+        (next) => {
           this._getBlockchainHeight(wallet.coin, wallet.network, (err, height, hash) => {
             if (err) return next(err);
             bcHeight = height;
@@ -3648,14 +3648,14 @@ export class WalletService {
             return next();
           });
         },
-        next => {
+        (next) => {
           this.storage.getTxHistoryCacheStatusV8(walletCacheKey, (err, inCacheStatus) => {
             if (err) return cb(err);
             cacheStatus = inCacheStatus;
             return next();
           });
         },
-        next => {
+        (next) => {
           if (skip == 0 || !streamKey) return next();
 
           logger.debug('Checking streamKey/skip', streamKey, skip);
@@ -3673,7 +3673,7 @@ export class WalletService {
             return next();
           });
         },
-        next => {
+        (next) => {
           if (streamData) {
             lastTxs = streamData;
             return next();
@@ -3691,7 +3691,7 @@ export class WalletService {
               if (cacheStatus.tipTxId) {
                 // first item is the most recent tx.
                 // removes already cache txs
-                lastTxs = _.takeWhile(inTxs, tx => {
+                lastTxs = _.takeWhile(inTxs, (tx) => {
                   // cacheTxs are very confirmed, so can't be reorged
                   return tx.txid != cacheStatus.tipTxId;
                 });
@@ -3707,7 +3707,7 @@ export class WalletService {
             });
           });
         },
-        next => {
+        (next) => {
           // Case 1.
           //            t -->
           //  | Old TXS    | ======= LAST TXS ========== \
@@ -3750,7 +3750,7 @@ export class WalletService {
             }
 
             // update confirmations from height
-            _.each(oldTxs, x => {
+            _.each(oldTxs, (x) => {
               if (x.blockheight > 0 && bcHeight >= x.blockheight) {
                 x.confirmations = bcHeight - x.blockheight + 1;
               }
@@ -3760,14 +3760,14 @@ export class WalletService {
             return next();
           });
         },
-        next => {
+        (next) => {
           if (streamData) {
             return next();
           }
           // We have now TXs from 'tipHeight` to end in `lastTxs`.
           // Store hard confirmed TXs
           // confirmations here is bcHeight - tip + 1, so OK.
-          txsToCache = _.filter(lastTxs, i => {
+          txsToCache = _.filter(lastTxs, (i) => {
             if (i.confirmations < Defaults.CONFIRMATIONS_TO_START_CACHING) {
               return false;
             }
@@ -3783,15 +3783,15 @@ export class WalletService {
 
           const updateHeight = bcHeight - Defaults.CONFIRMATIONS_TO_START_CACHING;
           this.storage.storeTxHistoryCacheV8(walletCacheKey, cacheStatus.tipIndex, txsToCache, updateHeight, next);
-        }
+        },
       ],
-      err => {
+      (err) => {
         if (err) return cb(err);
         return cb(null, {
           items: resultTxs,
           fromCache,
           fromBc,
-          useStream: !!streamData
+          useStream: !!streamData,
         });
       }
     );
@@ -3833,7 +3833,7 @@ export class WalletService {
 
       async.waterfall(
         [
-          next => {
+          (next) => {
             this.getTxHistoryV8(bc, wallet, opts, from, opts.limit, next);
           },
           (txs: { items: Array<{ time: number }> }, next) => {
@@ -3847,35 +3847,35 @@ export class WalletService {
 
             async.parallel(
               [
-                done => {
+                (done) => {
                   this.storage.fetchTxs(
                     this.walletId,
                     {
                       minTs,
-                      maxTs
+                      maxTs,
                     },
                     done
                   );
                 },
-                done => {
+                (done) => {
                   this.storage.fetchTxNotes(
                     this.walletId,
                     {
-                      minTs
+                      minTs,
                     },
                     done
                   );
-                }
+                },
               ],
               (err, res) => {
                 return next(err, {
                   txs,
                   txps: res[0],
-                  notes: res[1]
+                  notes: res[1],
                 });
               }
             );
-          }
+          },
         ],
         (err, res: any) => {
           if (err) return cb(err);
@@ -3884,12 +3884,12 @@ export class WalletService {
           const indexedProposals = _.keyBy(res.txps, 'txid');
           const indexedNotes = _.keyBy(res.notes, 'txid');
 
-          const finalTxs = _.map(res.txs.items, tx => {
+          const finalTxs = _.map(res.txs.items, (tx) => {
             WalletService._addProposalInfo(tx, indexedProposals, opts);
             WalletService._addNotesInfo(tx, indexedNotes);
             return tx;
           });
-          this.tagLowFeeTxs(wallet, finalTxs, err => {
+          this.tagLowFeeTxs(wallet, finalTxs, (err) => {
             if (err) this.logw('Failed to tag unconfirmed with low fee');
 
             if (res.txs.fromCache) {
@@ -3940,9 +3940,9 @@ export class WalletService {
         if (wallet.singleAddress) return cb();
         if (!ChainService.isUTXOCoin(wallet.coin)) return cb();
 
-        this._runLocked(cb, cb => {
+        this._runLocked(cb, (cb) => {
           wallet.scanStatus = 'running';
-          this.storage.storeWallet(wallet, err => {
+          this.storage.storeWallet(wallet, (err) => {
             if (err) return cb(err);
 
             const bc = this._getBlockchainExplorer(wallet.coin, wallet.network);
@@ -3950,7 +3950,7 @@ export class WalletService {
             opts.bc = bc;
             let step = opts.startingStep;
             async.doWhilst(
-              next => {
+              (next) => {
                 this._runScan(wallet, step, opts, next);
               },
               () => {
@@ -3982,7 +3982,7 @@ export class WalletService {
           //      this.logi('Scanning addr branch: %s index: %d gap %d step %d', derivator.id, derivator.index(), inactiveCounter, step);
           return inactiveCounter < gap;
         },
-        next => {
+        (next) => {
           const address = derivator.derive();
 
           opts.bc.getAddressActivity(address.address, (err, activity) => {
@@ -3994,7 +3994,7 @@ export class WalletService {
             return next();
           });
         },
-        err => {
+        (err) => {
           derivator.rewind(gap);
           return cb(err, _.dropRight(allAddresses, gap));
         }
@@ -4002,22 +4002,22 @@ export class WalletService {
     };
 
     const derivators = [];
-    _.each([false, true], isChange => {
+    _.each([false, true], (isChange) => {
       derivators.push({
         id: wallet.addressManager.getBaseAddressPath(isChange),
         derive: _.bind(wallet.createAddress, wallet, isChange, step),
         index: _.bind(wallet.addressManager.getCurrentIndex, wallet.addressManager, isChange),
         rewind: _.bind(wallet.addressManager.rewindIndex, wallet.addressManager, isChange, step),
-        getSkippedAddress: _.bind(wallet.getSkippedAddress, wallet)
+        getSkippedAddress: _.bind(wallet.getSkippedAddress, wallet),
       });
       if (opts.includeCopayerBranches) {
-        _.each(wallet.copayers, copayer => {
+        _.each(wallet.copayers, (copayer) => {
           if (copayer.addressManager) {
             derivators.push({
               id: copayer.addressManager.getBaseAddressPath(isChange),
               derive: _.bind(copayer.createAddress, copayer, wallet, isChange),
               index: _.bind(copayer.addressManager.getCurrentIndex, copayer.addressManager, isChange),
-              rewind: _.bind(copayer.addressManager.rewindIndex, copayer.addressManager, isChange, step)
+              rewind: _.bind(copayer.addressManager.rewindIndex, copayer.addressManager, isChange, step),
             });
           }
         });
@@ -4048,11 +4048,11 @@ export class WalletService {
           this._store(wallet, addresses, next);
         });
       },
-      error => {
+      (error) => {
         this.storage.fetchWallet(wallet.id, (err, wallet) => {
           if (err) return cb(err);
           wallet.scanStatus = error ? 'error' : 'success';
-          this.storage.storeWallet(wallet, err => {
+          this.storage.storeWallet(wallet, (err) => {
             return cb(error || err);
           });
         });
@@ -4067,14 +4067,14 @@ export class WalletService {
    * @param {Boolean} opts.includeCopayerBranches (defaults to false)
    */
   startScan(opts, cb) {
-    const scanFinished = err => {
+    const scanFinished = (err) => {
       const data = {
         result: err ? 'error' : 'success',
-        error: undefined
+        error: undefined,
       };
       if (err) data.error = err;
       this._notify('ScanFinished', data, {
-        isGlobal: true
+        isGlobal: true,
       });
     };
 
@@ -4094,7 +4094,7 @@ export class WalletService {
       }, 100);
 
       return cb(null, {
-        started: true
+        started: true,
       });
     });
   }
@@ -4104,7 +4104,7 @@ export class WalletService {
    * @param {Object} opts
    * @param {string} opts.code - Currency ISO code.
    * @param {Date} [opts.ts] - A timestamp to base the rate on (default Date.now()).
-   * @param {String} [opts.provider] - A provider of exchange rates (default 'BitPay').
+   * @param {String} [opts.provider] - A provider of exchange rates (default 'Astracore').
    * @returns {Object} rates - The exchange rate.
    */
   getFiatRate(opts, cb) {
@@ -4121,7 +4121,7 @@ export class WalletService {
    * @param {Object} opts
    * @param {string} opts.code - Currency ISO code.
    * @param {Date} opts.ts - The oldest timestamp in the range to Date.now().
-   * @param {String} [opts.provider] - A provider of exchange rates (default 'BitPay').
+   * @param {String} [opts.provider] - A provider of exchange rates (default 'Astracore').
    * @returns {Object} rates - The exchange rate.
    */
   getHistoricalRates(opts, cb) {
@@ -4146,7 +4146,7 @@ export class WalletService {
       copayerId: this.copayerId,
       token: opts.token,
       packageName: opts.packageName,
-      platform: opts.platform
+      platform: opts.platform,
     });
 
     this.storage.storePushNotificationSub(sub, cb);
@@ -4174,7 +4174,7 @@ export class WalletService {
     const sub = TxConfirmationSub.create({
       copayerId: this.copayerId,
       walletId: this.walletId,
-      txid: opts.txid
+      txid: opts.txid,
     });
 
     this.storage.storeTxConfirmationSub(sub, cb);
@@ -4206,7 +4206,7 @@ export class WalletService {
 
       const headers = {
         'Content-Type': 'application/json',
-        Authorization: 'ApiKey ' + API_KEY
+        Authorization: 'ApiKey ' + API_KEY,
       };
       delete req.body.env;
 
@@ -4215,7 +4215,7 @@ export class WalletService {
         {
           headers,
           body: req.body,
-          json: true
+          json: true,
         },
         (err, data) => {
           if (err) {
@@ -4255,7 +4255,7 @@ export class WalletService {
         http_accept_language: 'de,en-US;q=0.7,en;q=0.3',
         user_agent: req.body.account_details.signup_login ? req.body.account_details.signup_login.user_agent : '', // Format: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0'
         cookie_session_id: '',
-        timestamp: req.body.account_details.signup_login ? req.body.account_details.signup_login.timestamp : ''
+        timestamp: req.body.account_details.signup_login ? req.body.account_details.signup_login.timestamp : '',
       };
 
       req.body.transaction_details.payment_details.payment_id = paymentId;
@@ -4264,7 +4264,7 @@ export class WalletService {
 
       const headers = {
         'Content-Type': 'application/json',
-        Authorization: 'ApiKey ' + API_KEY
+        Authorization: 'ApiKey ' + API_KEY,
       };
 
       this.request.post(
@@ -4272,7 +4272,7 @@ export class WalletService {
         {
           headers,
           body: req.body,
-          json: true
+          json: true,
         },
         (err, data) => {
           if (err) {
@@ -4299,14 +4299,14 @@ export class WalletService {
       const API_KEY = config.simplex[req.env].apiKey;
       const headers = {
         'Content-Type': 'application/json',
-        Authorization: 'ApiKey ' + API_KEY
+        Authorization: 'ApiKey ' + API_KEY,
       };
 
       this.request.get(
         API + '/wallet/merchant/v2/events',
         {
           headers,
-          json: true
+          json: true,
         },
         (err, data) => {
           if (err) {
@@ -4332,7 +4332,7 @@ export class WalletService {
       API: config.wyre[env].api,
       API_KEY: config.wyre[env].apiKey,
       SECRET_API_KEY: config.wyre[env].secretApiKey,
-      ACCOUNT_ID: config.wyre[env].appProviderAccountId
+      ACCOUNT_ID: config.wyre[env].appProviderAccountId,
     };
 
     return keys;
@@ -4357,7 +4357,7 @@ export class WalletService {
 
       const URL: string = `${keys.API}/v3/orders/quote/partner?timestamp=${Date.now().toString()}`;
       const XApiSignature: string = URL + JSON.stringify(req.body);
-      const XApiSignatureHash: string = Bitcore.crypto.Hash.sha256hmac(
+      const XApiSignatureHash: string = Astracore.crypto.Hash.sha256hmac(
         Buffer.from(XApiSignature),
         Buffer.from(keys.SECRET_API_KEY)
       ).toString('hex');
@@ -4365,7 +4365,7 @@ export class WalletService {
       const headers = {
         'Content-Type': 'application/json',
         'X-Api-Key': keys.API_KEY,
-        'X-Api-Signature': XApiSignatureHash
+        'X-Api-Signature': XApiSignatureHash,
       };
 
       this.request.post(
@@ -4373,7 +4373,7 @@ export class WalletService {
         {
           headers,
           body: req.body,
-          json: true
+          json: true,
         },
         (err, data) => {
           if (err) {
@@ -4405,7 +4405,7 @@ export class WalletService {
 
       const URL: string = `${keys.API}/v3/orders/reserve?timestamp=${Date.now().toString()}`;
       const XApiSignature: string = URL + JSON.stringify(req.body);
-      const XApiSignatureHash: string = Bitcore.crypto.Hash.sha256hmac(
+      const XApiSignatureHash: string = Astracore.crypto.Hash.sha256hmac(
         Buffer.from(XApiSignature),
         Buffer.from(keys.SECRET_API_KEY)
       ).toString('hex');
@@ -4413,7 +4413,7 @@ export class WalletService {
       const headers = {
         'Content-Type': 'application/json',
         'X-Api-Key': keys.API_KEY,
-        'X-Api-Signature': XApiSignatureHash
+        'X-Api-Signature': XApiSignatureHash,
       };
 
       this.request.post(
@@ -4421,7 +4421,7 @@ export class WalletService {
         {
           headers,
           body: req.body,
-          json: true
+          json: true,
         },
         (err, data) => {
           if (err) {

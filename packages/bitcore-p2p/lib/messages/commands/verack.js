@@ -2,8 +2,8 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
-var BufferUtil = bitcore.util.buffer;
+var astracore = require('astracore-lib');
+var BufferUtil = astracore.util.buffer;
 
 /**
  * A message in response to a version message.
@@ -16,9 +16,9 @@ function VerackMessage(arg, options) {
 }
 inherits(VerackMessage, Message);
 
-VerackMessage.prototype.setPayload = function() {};
+VerackMessage.prototype.setPayload = function () {};
 
-VerackMessage.prototype.getPayload = function() {
+VerackMessage.prototype.getPayload = function () {
   return BufferUtil.EMPTY_BUFFER;
 };
 

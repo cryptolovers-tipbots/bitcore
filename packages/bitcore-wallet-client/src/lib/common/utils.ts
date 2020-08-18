@@ -1,6 +1,6 @@
 'use strict';
 
-import { BitcoreLib, BitcoreLibCash, Deriver, Transactions } from 'crypto-wallet-core';
+import { AstracoreLib, AstracoreLibCash, Deriver, Transactions } from 'crypto-wallet-core';
 
 import * as _ from 'lodash';
 import { Constants } from './constants';
@@ -10,16 +10,16 @@ const $ = require('preconditions').singleton();
 const sjcl = require('sjcl');
 const Stringify = require('json-stable-stringify');
 
-const Bitcore = BitcoreLib;
-const Bitcore_ = {
-  btc: Bitcore,
-  bch: BitcoreLibCash,
-  eth: Bitcore,
-  xrp: Bitcore
+const Astracore = AstracoreLib;
+const Astracore_ = {
+  btc: Astracore,
+  bch: AstracoreLibCash,
+  eth: Astracore,
+  xrp: Astracore,
 };
-const PrivateKey = Bitcore.PrivateKey;
-const PublicKey = Bitcore.PublicKey;
-const crypto = Bitcore.crypto;
+const PrivateKey = Astracore.PrivateKey;
+const PublicKey = Astracore.PublicKey;
+const crypto = Astracore.crypto;
 
 let SJCL = {};
 
@@ -42,7 +42,7 @@ export class Utils {
       _.defaults(
         {
           ks: 128,
-          iter: 1
+          iter: 1,
         },
         SJCL
       )
@@ -92,7 +92,7 @@ export class Utils {
     $.checkArgument(text);
     var buf = Buffer.from(text);
     var ret = crypto.Hash.sha256sha256(buf);
-    ret = new Bitcore.encoding.BufferReader(ret).readReverse();
+    ret = new Astracore.encoding.BufferReader(ret).readReverse();
     return ret;
   }
 
@@ -123,11 +123,9 @@ export class Utils {
 
   static privateKeyToAESKey(privKey) {
     $.checkArgument(privKey && _.isString(privKey));
-    $.checkArgument(Bitcore.PrivateKey.isValid(privKey), 'The private key received is invalid');
-    var pk = Bitcore.PrivateKey.fromString(privKey);
-    return Bitcore.crypto.Hash.sha256(pk.toBuffer())
-      .slice(0, 16)
-      .toString('base64');
+    $.checkArgument(Astracore.PrivateKey.isValid(privKey), 'The private key received is invalid');
+    var pk = Astracore.PrivateKey.fromString(privKey);
+    return Astracore.crypto.Hash.sha256(pk.toBuffer()).slice(0, 16).toString('base64');
   }
 
   static getCopayerHash(name, xPubKey, requestPubKey) {
@@ -159,40 +157,40 @@ export class Utils {
 
     coin = coin || 'btc';
     const chain = this.getChain(coin).toLowerCase();
-    var bitcore = Bitcore_[chain];
-    var publicKeys = _.map(publicKeyRing, item => {
-      var xpub = new bitcore.HDPublicKey(item.xPubKey);
+    var astracore = Astracore_[chain];
+    var publicKeys = _.map(publicKeyRing, (item) => {
+      var xpub = new astracore.HDPublicKey(item.xPubKey);
       return xpub.deriveChild(path).publicKey;
     });
 
-    var bitcoreAddress;
+    var astracoreAddress;
     switch (scriptType) {
       case Constants.SCRIPT_TYPES.P2WSH:
         const nestedWitness = false;
-        bitcoreAddress = bitcore.Address.createMultisig(publicKeys, m, network, nestedWitness, 'witnessscripthash');
+        astracoreAddress = astracore.Address.createMultisig(publicKeys, m, network, nestedWitness, 'witnessscripthash');
         break;
       case Constants.SCRIPT_TYPES.P2SH:
-        bitcoreAddress = bitcore.Address.createMultisig(publicKeys, m, network);
+        astracoreAddress = astracore.Address.createMultisig(publicKeys, m, network);
         break;
       case Constants.SCRIPT_TYPES.P2WPKH:
-        bitcoreAddress = bitcore.Address.fromPublicKey(publicKeys[0], network, 'witnesspubkeyhash');
+        astracoreAddress = astracore.Address.fromPublicKey(publicKeys[0], network, 'witnesspubkeyhash');
         break;
       case Constants.SCRIPT_TYPES.P2PKH:
         $.checkState(_.isArray(publicKeys) && publicKeys.length == 1);
         if (Constants.UTXO_COINS.includes(coin)) {
-          bitcoreAddress = bitcore.Address.fromPublicKey(publicKeys[0], network);
+          astracoreAddress = astracore.Address.fromPublicKey(publicKeys[0], network);
         } else {
           const { addressIndex, isChange } = this.parseDerivationPath(path);
           const [{ xPubKey }] = publicKeyRing;
-          bitcoreAddress = Deriver.deriveAddress(chain.toUpperCase(), network, xPubKey, addressIndex, isChange);
+          astracoreAddress = Deriver.deriveAddress(chain.toUpperCase(), network, xPubKey, addressIndex, isChange);
         }
         break;
     }
 
     return {
-      address: bitcoreAddress.toString(true),
+      address: astracoreAddress.toString(true),
       path,
-      publicKeys: _.invokeMap(publicKeys, 'toString')
+      publicKeys: _.invokeMap(publicKeys, 'toString'),
     };
   }
 
@@ -214,12 +212,12 @@ export class Utils {
   }
 
   static signRequestPubKey(requestPubKey, xPrivKey) {
-    var priv = new Bitcore.HDPrivateKey(xPrivKey).deriveChild(Constants.PATHS.REQUEST_KEY_AUTH).privateKey;
+    var priv = new Astracore.HDPrivateKey(xPrivKey).deriveChild(Constants.PATHS.REQUEST_KEY_AUTH).privateKey;
     return this.signMessage(requestPubKey, priv);
   }
 
   static verifyRequestPubKey(requestPubKey, signature, xPubKey) {
-    var pub = new Bitcore.HDPublicKey(xPubKey).deriveChild(Constants.PATHS.REQUEST_KEY_AUTH).publicKey;
+    var pub = new Astracore.HDPublicKey(xPubKey).deriveChild(Constants.PATHS.REQUEST_KEY_AUTH).publicKey;
     return this.verifyMessage(requestPubKey, signature, pub.toString());
   }
 
@@ -272,9 +270,9 @@ export class Utils {
     var coin = txp.coin || 'btc';
 
     if (Constants.UTXO_COINS.includes(coin)) {
-      var bitcore = Bitcore_[coin];
+      var astracore = Astracore_[coin];
 
-      var t = new bitcore.Transaction();
+      var t = new astracore.Transaction();
 
       if (txp.version >= 4) {
         t.setVersion(2);
@@ -287,7 +285,7 @@ export class Utils {
       switch (txp.addressType) {
         case Constants.SCRIPT_TYPES.P2WSH:
         case Constants.SCRIPT_TYPES.P2SH:
-          _.each(txp.inputs, i => {
+          _.each(txp.inputs, (i) => {
             t.from(i, i.publicKeys, txp.requiredSignatures);
           });
           break;
@@ -300,13 +298,13 @@ export class Utils {
       if (txp.toAddress && txp.amount && !txp.outputs) {
         t.to(txp.toAddress, txp.amount);
       } else if (txp.outputs) {
-        _.each(txp.outputs, o => {
+        _.each(txp.outputs, (o) => {
           $.checkState(o.script || o.toAddress, 'Output should have either toAddress or script specified');
           if (o.script) {
             t.addOutput(
-              new bitcore.Transaction.Output({
+              new astracore.Transaction.Output({
                 script: o.script,
-                satoshis: o.amount
+                satoshis: o.amount,
               })
             );
           } else {
@@ -320,18 +318,18 @@ export class Utils {
 
       // Shuffle outputs for improved privacy
       if (t.outputs.length > 1) {
-        var outputOrder = _.reject(txp.outputOrder, order => {
+        var outputOrder = _.reject(txp.outputOrder, (order) => {
           return order >= t.outputs.length;
         });
         $.checkState(t.outputs.length == outputOrder.length);
-        t.sortOutputs(outputs => {
-          return _.map(outputOrder, i => {
+        t.sortOutputs((outputs) => {
+          return _.map(outputOrder, (i) => {
             return outputs[i];
           });
         });
       }
 
-      // Validate inputs vs outputs independently of Bitcore
+      // Validate inputs vs outputs independently of Astracore
       var totalInputs = _.reduce(
         txp.inputs,
         (memo, i) => {
@@ -353,12 +351,12 @@ export class Utils {
       return t;
     } else {
       const { data, destinationTag, outputs, payProUrl, tokenAddress, multisigContractAddress } = txp;
-      const recipients = outputs.map(output => {
+      const recipients = outputs.map((output) => {
         return {
           amount: output.amount,
           address: output.toAddress,
           data: output.data,
-          gasLimit: output.gasLimit
+          gasLimit: output.gasLimit,
         };
       });
       // Backwards compatibility BWC <= 8.9.0
@@ -376,7 +374,7 @@ export class Utils {
           tag: destinationTag ? Number(destinationTag) : undefined,
           chain,
           nonce: Number(txp.nonce) + Number(index),
-          recipients: [recipients[index]]
+          recipients: [recipients[index]],
         });
         unsignedTxs.push(rawTx);
       }

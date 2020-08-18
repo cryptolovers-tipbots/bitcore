@@ -1,18 +1,17 @@
 'use strict';
 
-var bitcore = require('bitcore-lib');
-var BN = bitcore.crypto.BN;
+var astracore = require('astracore-lib');
+var BN = astracore.crypto.BN;
 var unorm = require('unorm');
-var _ = bitcore.deps._;
+var _ = astracore.deps._;
 
 var pbkdf2 = require('./pbkdf2');
 var errors = require('./errors');
 
-var Hash = bitcore.crypto.Hash;
-var Random = bitcore.crypto.Random;
+var Hash = astracore.crypto.Hash;
+var Random = astracore.crypto.Random;
 
-var $ = bitcore.util.preconditions;
-
+var $ = astracore.util.preconditions;
 
 /**
  * This is an immutable class that represents a BIP39 Mnemonic code.
@@ -35,7 +34,7 @@ var $ = bitcore.util.preconditions;
  * @returns {Mnemonic} A new instance of Mnemonic
  * @constructor
  */
-var Mnemonic = function(data, wordlist) {
+var Mnemonic = function (data, wordlist) {
   if (!(this instanceof Mnemonic)) {
     return new Mnemonic(data, wordlist);
   }
@@ -44,7 +43,6 @@ var Mnemonic = function(data, wordlist) {
     wordlist = data;
     data = null;
   }
-
 
   // handle data overloading
   var ent, phrase, seed;
@@ -56,10 +54,9 @@ var Mnemonic = function(data, wordlist) {
   } else if (_.isNumber(data)) {
     ent = data;
   } else if (data) {
-    throw new bitcore.errors.InvalidArgument('data', 'Must be a Buffer, a string or an integer');
+    throw new astracore.errors.InvalidArgument('data', 'Must be a Buffer, a string or an integer');
   }
   ent = ent || 128;
-
 
   // check and detect wordlist
   wordlist = wordlist || Mnemonic._getDictionary(phrase);
@@ -72,25 +69,24 @@ var Mnemonic = function(data, wordlist) {
     phrase = Mnemonic._entropy2mnemonic(seed, wordlist);
   }
 
-
   // validate phrase and ent
   if (phrase && !Mnemonic.isValid(phrase, wordlist)) {
     throw new errors.InvalidMnemonic(phrase);
   }
   if (ent % 32 !== 0 || ent < 128 || ent > 256) {
-    throw new bitcore.errors.InvalidArgument('ENT', 'Values must be ENT > 128 and ENT < 256 and ENT % 32 == 0');
+    throw new astracore.errors.InvalidArgument('ENT', 'Values must be ENT > 128 and ENT < 256 and ENT % 32 == 0');
   }
 
   phrase = phrase || Mnemonic._mnemonic(ent, wordlist);
 
   Object.defineProperty(this, 'wordlist', {
     configurable: false,
-    value: wordlist
+    value: wordlist,
   });
 
   Object.defineProperty(this, 'phrase', {
     configurable: false,
-    value: phrase
+    value: phrase,
   });
 };
 
@@ -108,7 +104,7 @@ Mnemonic.Words = require('./words');
  * @param {String} [wordlist] - The wordlist used
  * @returns {boolean}
  */
-Mnemonic.isValid = function(mnemonic, wordlist) {
+Mnemonic.isValid = function (mnemonic, wordlist) {
   mnemonic = unorm.nfkd(mnemonic);
   wordlist = wordlist || Mnemonic._getDictionary(mnemonic);
 
@@ -142,7 +138,7 @@ Mnemonic.isValid = function(mnemonic, wordlist) {
  * @param {String} wordlist - The wordlist
  * @returns {boolean}
  */
-Mnemonic._belongsToWordlist = function(mnemonic, wordlist) {
+Mnemonic._belongsToWordlist = function (mnemonic, wordlist) {
   var words = unorm.nfkd(mnemonic).split(' ');
   for (var i = 0; i < words.length; i++) {
     var ind = wordlist.indexOf(words[i]);
@@ -157,7 +153,7 @@ Mnemonic._belongsToWordlist = function(mnemonic, wordlist) {
  * @param {String} mnemonic - The mnemonic string
  * @returns {Array} the wordlist or null
  */
-Mnemonic._getDictionary = function(mnemonic) {
+Mnemonic._getDictionary = function (mnemonic) {
   if (!mnemonic) return null;
 
   var dicts = Object.keys(Mnemonic.Words);
@@ -176,7 +172,7 @@ Mnemonic._getDictionary = function(mnemonic) {
  * @param {String} [passphrase]
  * @returns {Buffer}
  */
-Mnemonic.prototype.toSeed = function(passphrase) {
+Mnemonic.prototype.toSeed = function (passphrase) {
   passphrase = passphrase || '';
   return pbkdf2(unorm.nfkd(this.phrase), unorm.nfkd('mnemonic' + passphrase), 2048, 64);
 };
@@ -188,7 +184,7 @@ Mnemonic.prototype.toSeed = function(passphrase) {
  * @param {string} [wordlist]
  * @returns {Mnemonic}
  */
-Mnemonic.fromSeed = function(seed, wordlist) {
+Mnemonic.fromSeed = function (seed, wordlist) {
   $.checkArgument(Buffer.isBuffer(seed), 'seed must be a Buffer.');
   $.checkArgument(_.isArray(wordlist) || _.isString(wordlist), 'wordlist must be a string or an array.');
   return new Mnemonic(seed, wordlist);
@@ -203,9 +199,9 @@ Mnemonic.fromSeed = function(seed, wordlist) {
  * @param {Network|String|number=} [network] - The network: 'livenet' or 'testnet'
  * @returns {HDPrivateKey}
  */
-Mnemonic.prototype.toHDPrivateKey = function(passphrase, network) {
+Mnemonic.prototype.toHDPrivateKey = function (passphrase, network) {
   var seed = this.toSeed(passphrase);
-  return bitcore.HDPrivateKey.fromSeed(seed, network);
+  return astracore.HDPrivateKey.fromSeed(seed, network);
 };
 
 /**
@@ -213,7 +209,7 @@ Mnemonic.prototype.toHDPrivateKey = function(passphrase, network) {
  *
  * @returns {String} Mnemonic
  */
-Mnemonic.prototype.toString = function() {
+Mnemonic.prototype.toString = function () {
   return this.phrase;
 };
 
@@ -222,7 +218,7 @@ Mnemonic.prototype.toString = function() {
  *
  * @returns {String} Mnemonic
  */
-Mnemonic.prototype.inspect = function() {
+Mnemonic.prototype.inspect = function () {
   return '<Mnemonic: ' + this.toString() + ' >';
 };
 
@@ -233,7 +229,7 @@ Mnemonic.prototype.inspect = function() {
  * @param {Array} wordlist - Array of words to generate the mnemonic
  * @returns {String} Mnemonic string
  */
-Mnemonic._mnemonic = function(ENT, wordlist) {
+Mnemonic._mnemonic = function (ENT, wordlist) {
   var buf = Random.getRandomBuffer(ENT / 8);
   return Mnemonic._entropy2mnemonic(buf, wordlist);
 };
@@ -245,7 +241,7 @@ Mnemonic._mnemonic = function(ENT, wordlist) {
  * @param {Array} wordlist - Array of words to generate the mnemonic
  * @returns {String} Mnemonic string
  */
-Mnemonic._entropy2mnemonic = function(entropy, wordlist) {
+Mnemonic._entropy2mnemonic = function (entropy, wordlist) {
   var bin = '';
   for (var i = 0; i < entropy.length; i++) {
     bin = bin + ('00000000' + entropy[i].toString(2)).slice(-8);
@@ -276,7 +272,7 @@ Mnemonic._entropy2mnemonic = function(entropy, wordlist) {
  * @returns {string} Checksum of entropy length / 32
  * @private
  */
-Mnemonic._entropyChecksum = function(entropy) {
+Mnemonic._entropyChecksum = function (entropy) {
   var hash = Hash.sha256(entropy);
   var bits = entropy.length * 8;
   var cs = bits / 32;
@@ -293,6 +289,6 @@ Mnemonic._entropyChecksum = function(entropy) {
   return checksum;
 };
 
-Mnemonic.bitcore = bitcore;
+Mnemonic.astracore = astracore;
 
 module.exports = Mnemonic;

@@ -1,6 +1,6 @@
 # Messages
 
-The bitcoin protocol specifies a set of [messages](https://en.bitcoin.it/wiki/Protocol_specification) that can be sent from peer to peer. `bitcore-p2p` provides support for some of these messages.
+The bitcoin protocol specifies a set of [messages](https://en.bitcoin.it/wiki/Protocol_specification) that can be sent from peer to peer. `astracore-p2p` provides support for some of these messages.
 
 To create a message, you can use any of the message constructors, here is a simple example:
 
@@ -17,7 +17,7 @@ message = messages.GetData.forBlock(blockHash);
 message = messages.Inventory.forTransaction(txHash);
 ```
 
-As well as sending "tx" and "block" messages with Bitcore instances:
+As well as sending "tx" and "block" messages with Astracore instances:
 
 ```javascript
 message = messages.Block(block);
@@ -29,20 +29,20 @@ Note: A list of further messages is available below.
 For advanced usage, you can also customize which constructor is used for Block and Transaction messages by passing it as an argument to Messages, for example:
 
 ```javascript
-var messages = new Messages({Block: MyBlock, Transaction: MyTransaction});
+var messages = new Messages({ Block: MyBlock, Transaction: MyTransaction });
 ```
 
 And additionally a custom network:
 
 ```javascript
-var messages = new Messages({network: Networks.testnet});
+var messages = new Messages({ network: Networks.testnet });
 ```
 
 ## List of Messages
 
 ### Version
 
-The version message (`ver`) is used on connection creation, to advertise the type of node. The remote node will respond with its version, and no communication is possible until both peers have exchanged their versions. By default, bitcore advertises itself as named `bitcore` with the current version of the `bitcore-p2p` package.
+The version message (`ver`) is used on connection creation, to advertise the type of node. The remote node will respond with its version, and no communication is possible until both peers have exchanged their versions. By default, astracore advertises itself as named `astracore` with the current version of the `astracore-p2p` package.
 
 ### VerAck
 

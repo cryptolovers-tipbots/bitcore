@@ -18,10 +18,10 @@ const CurrentEnv = process.env.ENV || 'dev';
 
 const EnvApiHosts: { [env: string]: { [chain: string]: string } } = {
   prod: {
-    default: 'https://api.bitcore.io/api',
-    ETH: 'https://api-eth.bitcore.io/api'
+    default: 'https://api.astracore.io/api',
+    ETH: 'https://api-eth.astracore.io/api',
   },
-  dev: { default: '/api' }
+  dev: { default: '/api' },
 };
 
 const CurrentApiHosts = EnvApiHosts[CurrentEnv];
@@ -30,31 +30,31 @@ const CurrentApiHosts = EnvApiHosts[CurrentEnv];
 export class ApiProvider {
   public defaultNetwork = {
     chain: this.defaults.getDefault('%CHAIN%'),
-    network: this.defaults.getDefault('%NETWORK%')
+    network: this.defaults.getDefault('%NETWORK%'),
   };
   public networkSettings = {
     availableNetworks: [this.defaultNetwork],
     selectedNetwork: this.defaultNetwork,
-    chainNetworkLookup: {}
+    chainNetworkLookup: {},
   };
 
   public ratesAPI = {
     btc: 'https://bitpay.com/api/rates',
     bch: 'https://bitpay.com/api/rates/bch',
-    eth: 'https://bitpay.com/api/rates/eth'
+    eth: 'https://bitpay.com/api/rates/eth',
   };
 
   public bwsUrl = {
-    urlPrefix: 'https://bws.bitpay.com/bws/api/v1/fiatrates/'
+    urlPrefix: 'https://bws.bitpay.com/bws/api/v1/fiatrates/',
   };
 
   constructor(
     public httpClient: HttpClient,
     private defaults: DefaultProvider
   ) {
-    this.getAvailableNetworks().subscribe(data => {
+    this.getAvailableNetworks().subscribe((data) => {
       const newNetworks = data
-        .map(x => x.supported)
+        .map((x) => x.supported)
         .reduce((agg, arr) => [...agg].concat(arr), []);
 
       const chainNetworkLookup = {};
@@ -67,7 +67,7 @@ export class ApiProvider {
 
       for (const { chain, network } of newNetworks) {
         const found = this.networkSettings.availableNetworks.find(
-          available =>
+          (available) =>
             available.chain === chain && available.network === network
         );
         if (!found) {
@@ -78,7 +78,7 @@ export class ApiProvider {
       this.networkSettings = {
         availableNetworks: this.networkSettings.availableNetworks,
         selectedNetwork: this.networkSettings.selectedNetwork,
-        chainNetworkLookup
+        chainNetworkLookup,
       };
     });
   }
@@ -89,14 +89,14 @@ export class ApiProvider {
     const hosts = CurrentApiHosts;
     return Observable.fromPromise(
       Promise.all(
-        Object.keys(hosts).map(async chain => {
+        Object.keys(hosts).map(async (chain) => {
           const host = hosts[chain];
           const supported = await this.httpClient
             .get<ChainNetwork[]>(host + '/status/enabled-chains')
             .toPromise();
           return {
             host,
-            supported
+            supported,
           };
         })
       )
@@ -128,7 +128,7 @@ export class ApiProvider {
   public getConfig(): ChainNetwork {
     const config = {
       chain: this.networkSettings.selectedNetwork.chain,
-      network: this.networkSettings.selectedNetwork.network
+      network: this.networkSettings.selectedNetwork.network,
     };
     return config;
   }
@@ -148,7 +148,7 @@ export class ApiProvider {
     this.networkSettings = {
       availableNetworks,
       selectedNetwork: network,
-      chainNetworkLookup: this.networkSettings.chainNetworkLookup || {}
+      chainNetworkLookup: this.networkSettings.chainNetworkLookup || {},
     };
   }
 }

@@ -8,7 +8,7 @@ import { Config } from '../services/config';
 import { ChainNetwork } from '../types/ChainNetwork';
 
 const secp256k1 = require('secp256k1');
-const bitcoreLib = require('bitcore-lib');
+const astracoreLib = require('astracore-lib');
 
 export interface VerificationPayload {
   message: string;
@@ -19,8 +19,8 @@ type SignedApiRequest = ChainNetwork & VerificationPayload;
 
 export function verifyRequestSignature(params: VerificationPayload): boolean {
   const { message, pubKey, signature } = params;
-  const pub = new bitcoreLib.PublicKey(pubKey).toBuffer();
-  const messageHash = bitcoreLib.crypto.Hash.sha256sha256(Buffer.from(message));
+  const pub = new astracoreLib.PublicKey(pubKey).toBuffer();
+  const messageHash = astracoreLib.crypto.Hash.sha256sha256(Buffer.from(message));
   if (typeof signature === 'string') {
     return secp256k1.verify(messageHash, Buffer.from(signature, 'hex'), pub);
   } else {
@@ -61,7 +61,7 @@ const authenticateMiddleware: RequestHandler = async (req: Request, res: Respons
     const validRequestSignature = verifyRequestSignature({
       message: [req.method, req.originalUrl, JSON.stringify(req.body)].join('|'),
       pubKey: wallet.pubKey,
-      signature: req.headers['x-signature']
+      signature: req.headers['x-signature'],
     });
     if (!validRequestSignature) {
       return res.status(401).send('Authentication failed');
@@ -74,5 +74,5 @@ const authenticateMiddleware: RequestHandler = async (req: Request, res: Respons
 
 export const Auth = {
   verifyRequestSignature,
-  authenticateMiddleware
+  authenticateMiddleware,
 };

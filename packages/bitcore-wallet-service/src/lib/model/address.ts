@@ -37,9 +37,9 @@ export class Address {
   hasActivity: boolean;
   beRegistered: boolean;
 
-  static Bitcore = {
-    btc: require('bitcore-lib'),
-    bch: require('bitcore-lib-cash')
+  static Astracore = {
+    btc: require('astracore-lib'),
+    bch: require('astracore-lib-cash'),
   };
 
   static create(opts) {
@@ -57,8 +57,8 @@ export class Address {
     x.path = opts.path;
     x.publicKeys = opts.publicKeys;
     x.coin = opts.coin;
-    x.network = Address.Bitcore[opts.coin]
-      ? Address.Bitcore[opts.coin].Address(x.address).toObject().network
+    x.network = Address.Astracore[opts.coin]
+      ? Address.Astracore[opts.coin].Address(x.address).toObject().network
       : opts.network;
     x.type = opts.type || Constants.SCRIPT_TYPES.P2SH;
     x.hasActivity = undefined;
@@ -87,18 +87,18 @@ export class Address {
   static _deriveAddress(scriptType, publicKeyRing, path, m, coin, network, noNativeCashAddr) {
     $.checkArgument(Utils.checkValueInCollection(scriptType, Constants.SCRIPT_TYPES));
 
-    const publicKeys = _.map(publicKeyRing, item => {
-      const xpub = Address.Bitcore[coin]
-        ? new Address.Bitcore[coin].HDPublicKey(item.xPubKey)
-        : new Address.Bitcore.btc.HDPublicKey(item.xPubKey);
+    const publicKeys = _.map(publicKeyRing, (item) => {
+      const xpub = Address.Astracore[coin]
+        ? new Address.Astracore[coin].HDPublicKey(item.xPubKey)
+        : new Address.Astracore.btc.HDPublicKey(item.xPubKey);
       return xpub.deriveChild(path).publicKey;
     });
 
-    let bitcoreAddress;
+    let astracoreAddress;
     switch (scriptType) {
       case Constants.SCRIPT_TYPES.P2WSH:
         const nestedWitness = false;
-        bitcoreAddress = Address.Bitcore[coin].Address.createMultisig(
+        astracoreAddress = Address.Astracore[coin].Address.createMultisig(
           publicKeys,
           m,
           network,
@@ -107,34 +107,34 @@ export class Address {
         );
         break;
       case Constants.SCRIPT_TYPES.P2SH:
-        bitcoreAddress = Address.Bitcore[coin].Address.createMultisig(publicKeys, m, network);
+        astracoreAddress = Address.Astracore[coin].Address.createMultisig(publicKeys, m, network);
         break;
       case Constants.SCRIPT_TYPES.P2WPKH:
-        bitcoreAddress = Address.Bitcore.btc.Address.fromPublicKey(publicKeys[0], network, 'witnesspubkeyhash');
+        astracoreAddress = Address.Astracore.btc.Address.fromPublicKey(publicKeys[0], network, 'witnesspubkeyhash');
         break;
       case Constants.SCRIPT_TYPES.P2PKH:
         $.checkState(_.isArray(publicKeys) && publicKeys.length == 1);
 
-        if (Address.Bitcore[coin]) {
-          bitcoreAddress = Address.Bitcore[coin].Address.fromPublicKey(publicKeys[0], network);
+        if (Address.Astracore[coin]) {
+          astracoreAddress = Address.Astracore[coin].Address.fromPublicKey(publicKeys[0], network);
         } else {
           const { addressIndex, isChange } = new AddressManager().parseDerivationPath(path);
           const [{ xPubKey }] = publicKeyRing;
-          bitcoreAddress = Deriver.deriveAddress(coin.toUpperCase(), network, xPubKey, addressIndex, isChange);
+          astracoreAddress = Deriver.deriveAddress(coin.toUpperCase(), network, xPubKey, addressIndex, isChange);
         }
         break;
     }
 
-    let addrStr = bitcoreAddress.toString(true);
+    let addrStr = astracoreAddress.toString(true);
     if (noNativeCashAddr && coin == 'bch') {
-      addrStr = bitcoreAddress.toLegacyAddress();
+      addrStr = astracoreAddress.toLegacyAddress();
     }
 
     return {
       // bws still use legacy addresses for BCH
       address: addrStr,
       path,
-      publicKeys: _.invokeMap(publicKeys, 'toString')
+      publicKeys: _.invokeMap(publicKeys, 'toString'),
     };
   }
 
@@ -147,7 +147,7 @@ export class Address {
         network,
         walletId,
         type: scriptType,
-        isChange
+        isChange,
       })
     );
   }

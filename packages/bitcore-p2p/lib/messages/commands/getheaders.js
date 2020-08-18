@@ -2,11 +2,11 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
+var astracore = require('astracore-lib');
 var utils = require('../utils');
-var BufferReader = bitcore.encoding.BufferReader;
-var BufferWriter = bitcore.encoding.BufferWriter;
-var $ = bitcore.util.preconditions;
+var BufferReader = astracore.encoding.BufferReader;
+var BufferWriter = astracore.encoding.BufferWriter;
+var $ = astracore.util.preconditions;
 
 /**
  * Query another peer about block headers. It can query for multiple block hashes,
@@ -31,7 +31,7 @@ function GetheadersMessage(arg, options) {
 }
 inherits(GetheadersMessage, Message);
 
-GetheadersMessage.prototype.setPayload = function(payload) {
+GetheadersMessage.prototype.setPayload = function (payload) {
   var parser = new BufferReader(payload);
   $.checkArgument(!parser.finished(), 'No data received in payload');
 
@@ -46,7 +46,7 @@ GetheadersMessage.prototype.setPayload = function(payload) {
   utils.checkFinished(parser);
 };
 
-GetheadersMessage.prototype.getPayload = function() {
+GetheadersMessage.prototype.getPayload = function () {
   var bw = new BufferWriter();
   bw.writeUInt32LE(this.version);
   bw.writeVarintNum(this.starts.length);

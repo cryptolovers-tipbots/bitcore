@@ -1,8 +1,8 @@
-# Bitcore Wallet
+# Astracore Wallet
 
-[![NPM Package](https://img.shields.io/npm/v/bitcore-wallet.svg?style=flat-square)](https://www.npmjs.org/package/bitcore-wallet)
+[![NPM Package](https://img.shields.io/npm/v/astracore-wallet.svg?style=flat-square)](https://www.npmjs.org/package/astracore-wallet)
 
-**A simple Command Line Interface Wallet using [Bitcore Wallet Service](https://github.com/bitpay/bitcore/tree/master/packages/bitcore-wallet-service) and its *official* client lib [Bitcore Wallet Client](https://github.com/bitpay/bitcore/tree/master/packages/bitcore-wallet-client).**
+**A simple Command Line Interface Wallet using [Astracore Wallet Service](https://github.com/bitpay/astracore/tree/master/packages/astracore-wallet-service) and its _official_ client lib [Astracore Wallet Client](https://github.com/bitpay/astracore/tree/master/packages/astracore-wallet-client).**
 
 This can be used to operate Bitcoin and Bitcoin Cash wallets.
 
@@ -12,7 +12,7 @@ This can be used to operate Bitcoin and Bitcoin Cash wallets.
 # Use -h or BWS_HOST to setup the BWS URL (defaults to localhost:3001)
 #
 # Start a local BWS instance be doing:
-# git clone https://github.com/bitpay/bitcore/tree/master/packages/bitcore-wallet-service.git bws
+# git clone https://github.com/bitpay/astracore/tree/master/packages/astracore-wallet-service.git bws
 # cd bws; npm install; npm start
 
 cd bin
@@ -101,7 +101,7 @@ airgapped$ wallet export -o toproxy --nosign
 # On the proxy machine
 proxy$ wallet import toproxy
   * Wallet Imported without signing capability.
-proxy$ wallet join <secret>    # Or wallet create 
+proxy$ wallet join <secret>    # Or wallet create
 proxy$ wallet address
 proxy$ wallet balance
 
@@ -128,10 +128,10 @@ proxy$ wallet sign -i signatures.dat
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/bitpay/bitcore/blob/master/Contributing.md) on the main bitcore repo for information about how to contribute.
+See [CONTRIBUTING.md](https://github.com/bitpay/astracore/blob/master/Contributing.md) on the main astracore repo for information about how to contribute.
 
 ## License
 
-Code released under [the MIT license](https://github.com/bitpay/bitcore/blob/master/LICENSE).
+Code released under [the MIT license](https://github.com/bitpay/astracore/blob/master/LICENSE).
 
-Copyright 2013-2019 BitPay, Inc. Bitcore is a trademark maintained by BitPay, Inc.
+Copyright 2013-2019 Astracore, Inc. Astracore is a trademark maintained by Astracore, Inc.

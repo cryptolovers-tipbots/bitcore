@@ -2,12 +2,12 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
+var astracore = require('astracore-lib');
 var utils = require('../utils');
-var BufferReader = bitcore.encoding.BufferReader;
-var BufferWriter = bitcore.encoding.BufferWriter;
-var _ = bitcore.deps._;
-var $ = bitcore.util.preconditions;
+var BufferReader = astracore.encoding.BufferReader;
+var BufferWriter = astracore.encoding.BufferWriter;
+var _ = astracore.deps._;
+var $ = astracore.util.preconditions;
 
 /**
  * Sent in response to a `getheaders` message. It contains information about
@@ -31,7 +31,7 @@ function HeadersMessage(arg, options) {
 }
 inherits(HeadersMessage, Message);
 
-HeadersMessage.prototype.setPayload = function(payload) {
+HeadersMessage.prototype.setPayload = function (payload) {
   $.checkArgument(payload && payload.length > 0, 'No data found to create Headers message');
   var parser = new BufferReader(payload);
   var count = parser.readVarintNum();
@@ -46,7 +46,7 @@ HeadersMessage.prototype.setPayload = function(payload) {
   utils.checkFinished(parser);
 };
 
-HeadersMessage.prototype.getPayload = function() {
+HeadersMessage.prototype.getPayload = function () {
   var bw = new BufferWriter();
   bw.writeVarintNum(this.headers.length);
   for (var i = 0; i < this.headers.length; i++) {

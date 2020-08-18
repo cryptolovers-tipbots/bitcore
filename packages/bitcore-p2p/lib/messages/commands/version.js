@@ -2,10 +2,10 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
-var BufferWriter = bitcore.encoding.BufferWriter;
-var BufferReader = bitcore.encoding.BufferReader;
-var BN = bitcore.crypto.BN;
+var astracore = require('astracore-lib');
+var BufferWriter = astracore.encoding.BufferWriter;
+var BufferReader = astracore.encoding.BufferReader;
+var BN = astracore.crypto.BN;
 
 var utils = require('../utils');
 var packageInfo = require('../../../package.json');
@@ -37,13 +37,13 @@ function VersionMessage(arg, options) {
   this.nonce = arg.nonce || utils.getNonce();
   this.services = arg.services || new BN(1, 10);
   this.timestamp = arg.timestamp || new Date();
-  this.subversion = arg.subversion || '/bitcore:' + packageInfo.version + '/';
+  this.subversion = arg.subversion || '/astracore:' + packageInfo.version + '/';
   this.startHeight = arg.startHeight || 0;
   this.relay = arg.relay === false ? false : true;
 }
 inherits(VersionMessage, Message);
 
-VersionMessage.prototype.setPayload = function(payload) {
+VersionMessage.prototype.setPayload = function (payload) {
   var parser = new BufferReader(payload);
   this.version = parser.readUInt32LE();
   this.services = parser.readUInt64LEBN();
@@ -52,18 +52,18 @@ VersionMessage.prototype.setPayload = function(payload) {
   this.addrMe = {
     services: parser.readUInt64LEBN(),
     ip: utils.parseIP(parser),
-    port: parser.readUInt16BE()
+    port: parser.readUInt16BE(),
   };
   this.addrYou = {
     services: parser.readUInt64LEBN(),
     ip: utils.parseIP(parser),
-    port: parser.readUInt16BE()
+    port: parser.readUInt16BE(),
   };
   this.nonce = parser.read(8);
   this.subversion = parser.readVarLengthBuffer().toString();
   this.startHeight = parser.readUInt32LE();
 
-  if(parser.finished()) {
+  if (parser.finished()) {
     this.relay = true;
   } else {
     this.relay = !!parser.readUInt8();
@@ -71,7 +71,7 @@ VersionMessage.prototype.setPayload = function(payload) {
   utils.checkFinished(parser);
 };
 
-VersionMessage.prototype.getPayload = function() {
+VersionMessage.prototype.getPayload = function () {
   var bw = new BufferWriter();
   bw.writeUInt32LE(this.version);
   bw.writeUInt64LEBN(this.services);

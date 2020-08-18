@@ -1,9 +1,9 @@
- 'use strict';
+'use strict';
 
-var bitcore = require('bitcore-lib');
-var BufferUtil = bitcore.util.buffer;
-var Hash = bitcore.crypto.Hash;
-var $ = bitcore.util.preconditions;
+var astracore = require('astracore-lib');
+var BufferUtil = astracore.util.buffer;
+var Hash = astracore.crypto.Hash;
+var $ = astracore.util.preconditions;
 
 /**
  * A factory to build Bitcoin protocol messages.
@@ -19,7 +19,7 @@ function Messages(options) {
   this.builder = Messages.builder(options);
 
   // map message constructors by name
-  for(var key in this.builder.commandsMap) {
+  for (var key in this.builder.commandsMap) {
     var name = this.builder.commandsMap[key];
     this[name] = this.builder.commands[key];
   }
@@ -27,7 +27,7 @@ function Messages(options) {
   if (!options) {
     options = {};
   }
-  this.network = options.network || bitcore.Networks.defaultNetwork;
+  this.network = options.network || astracore.Networks.defaultNetwork;
 }
 
 Messages.MINIMUM_LENGTH = 20;
@@ -38,7 +38,7 @@ Messages.builder = require('./builder');
 /**
  * @param {Buffers} dataBuffer
  */
-Messages.prototype.parseBuffer = function(dataBuffer) {
+Messages.prototype.parseBuffer = function (dataBuffer) {
   /* jshint maxstatements: 18 */
   if (dataBuffer.length < Messages.MINIMUM_LENGTH) {
     return;
@@ -49,7 +49,8 @@ Messages.prototype.parseBuffer = function(dataBuffer) {
     return;
   }
 
-  var payloadLen = (dataBuffer.get(Messages.PAYLOAD_START)) +
+  var payloadLen =
+    dataBuffer.get(Messages.PAYLOAD_START) +
     (dataBuffer.get(Messages.PAYLOAD_START + 1) << 8) +
     (dataBuffer.get(Messages.PAYLOAD_START + 2) << 16) +
     (dataBuffer.get(Messages.PAYLOAD_START + 3) << 24);
@@ -74,7 +75,7 @@ Messages.prototype.parseBuffer = function(dataBuffer) {
   return this._buildFromBuffer(command, payload);
 };
 
-Messages.prototype._discardUntilNextMessage = function(dataBuffer) {
+Messages.prototype._discardUntilNextMessage = function (dataBuffer) {
   $.checkArgument(dataBuffer);
   $.checkState(this.network, 'network must be set');
   var i = 0;
@@ -87,7 +88,7 @@ Messages.prototype._discardUntilNextMessage = function(dataBuffer) {
     }
 
     // did we reach the end of the buffer?
-    if (i > (dataBuffer.length - 4)) {
+    if (i > dataBuffer.length - 4) {
       dataBuffer.skip(i);
       return false;
     }
@@ -96,14 +97,14 @@ Messages.prototype._discardUntilNextMessage = function(dataBuffer) {
   }
 };
 
-Messages.prototype._buildFromBuffer = function(command, payload) {
+Messages.prototype._buildFromBuffer = function (command, payload) {
   if (!this.builder.commands[command]) {
     throw new Error('Unsupported message command: ' + command);
   }
   return this.builder.commands[command].fromBuffer(payload);
 };
 
-Messages.prototype.add = function(key, name, Command) {
+Messages.prototype.add = function (key, name, Command) {
   this.builder.add(key, Command);
   this[name] = this.builder.commands[key];
 };

@@ -1,4 +1,4 @@
-import { BitcoreLib, BitcoreLibCash } from 'crypto-wallet-core';
+import { AstracoreLib, AstracoreLibCash } from 'crypto-wallet-core';
 import _ from 'lodash';
 import { IChain } from '..';
 import { BtcChain } from '../btc';
@@ -7,12 +7,12 @@ const Errors = require('../../errors/errordefinitions');
 
 export class BchChain extends BtcChain implements IChain {
   constructor() {
-    super(BitcoreLibCash);
+    super(AstracoreLibCash);
     this.feeSafetyMargin = 0.1;
   }
 
   validateAddress(wallet, inaddr, opts) {
-    const A = BitcoreLibCash.Address;
+    const A = AstracoreLibCash.Address;
     let addr: {
       network?: string;
       toString?: (cashAddr: boolean) => string;

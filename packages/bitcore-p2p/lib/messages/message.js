@@ -1,9 +1,9 @@
 'use strict';
 
-var bitcore = require('bitcore-lib');
-var $ = bitcore.util.preconditions;
-var BufferWriter = bitcore.encoding.BufferWriter;
-var Hash = bitcore.crypto.Hash;
+var astracore = require('astracore-lib');
+var $ = astracore.util.preconditions;
+var BufferWriter = astracore.encoding.BufferWriter;
+var Hash = astracore.crypto.Hash;
 
 /**
  * Base message that can be inherited to add an additional
@@ -22,7 +22,7 @@ function Message(options) {
  * @returns {Buffer} - Serialized message
  * @constructor
  */
-Message.prototype.toBuffer = Message.prototype.serialize = function() {
+Message.prototype.toBuffer = Message.prototype.serialize = function () {
   $.checkState(this.network, 'Need to have a defined network to serialize message');
   var commandBuf = new Buffer(Array(12));
   commandBuf.write(this.command, 'ascii');

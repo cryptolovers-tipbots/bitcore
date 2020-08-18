@@ -23,7 +23,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
   }
 
   setupListeners() {
-    this.pool.on('peerready', peer => {
+    this.pool.on('peerready', (peer) => {
       logger.info(
         `${timestamp()} | Connected to peer: ${peer.host}:${peer.port.toString().padEnd(5)} | Chain: ${
           this.chain
@@ -31,7 +31,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
       );
     });
 
-    this.pool.on('peerdisconnect', peer => {
+    this.pool.on('peerdisconnect', (peer) => {
       logger.warn(
         `${timestamp()} | Not connected to peer: ${peer.host}:${peer.port.toString().padEnd(5)} | Chain: ${
           this.chain
@@ -45,7 +45,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         peer: `${peer.host}:${peer.port}`,
         chain: this.chain,
         network: this.network,
-        hash
+        hash,
       });
       this.events.emit('transaction', message.transaction);
     });
@@ -57,7 +57,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         peer: `${peer.host}:${peer.port}`,
         chain: this.chain,
         network: this.network,
-        hash
+        hash,
       });
 
       this.events.emit(hash, message.block);
@@ -69,17 +69,14 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         peer: `${peer.host}:${peer.port}`,
         chain: this.chain,
         network: this.network,
-        count: message.headers.length
+        count: message.headers.length,
       });
       this.events.emit('headers', message.headers);
     });
 
     this.pool.on('peerinv', (peer, message) => {
-      const filtered = message.inventory.filter(inv => {
-        const hash = this.bitcoreLib.encoding
-          .BufferReader(inv.hash)
-          .readReverse()
-          .toString('hex');
+      const filtered = message.inventory.filter((inv) => {
+        const hash = this.astracoreLib.encoding.BufferReader(inv.hash).readReverse().toString('hex');
         return !this.isCachedInv(inv.type, hash);
       });
 
@@ -106,7 +103,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         chain,
         network,
         startHeight: Math.max(1, currentHeight - 30),
-        endHeight: currentHeight
+        endHeight: currentHeight,
       });
       const headers = await this.getHeaders(locatorHashes);
       if (!headers.length) {
@@ -123,7 +120,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
           const nextBlock = await BitcoinBlockStorage.collection.findOne({
             chain,
             network,
-            previousBlockHash: block.hash
+            previousBlockHash: block.hash,
           });
           if (nextBlock) {
             await BitcoinBlockStorage.collection.updateOne(
@@ -137,7 +134,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
           logger.info('Re-Sync ', {
             chain,
             network,
-            height: currentHeight
+            height: currentHeight,
           });
           lastLog = Date.now();
         }
@@ -156,9 +153,9 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         chain,
         network,
         height: blockNum,
-        processed: true
+        processed: true,
       }),
-      TransactionStorage.collection.find({ chain, network, blockHeight: blockNum }).toArray()
+      TransactionStorage.collection.find({ chain, network, blockHeight: blockNum }).toArray(),
     ]);
 
     if (!block) {
@@ -167,7 +164,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         model: 'block',
         err: true,
         type: 'MISSING_BLOCK',
-        payload: { blockNum }
+        payload: { blockNum },
       };
       errors.push(error);
       if (log) {
@@ -176,7 +173,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
       return { success, errors };
     }
 
-    const blockTxids = blockTxs.map(t => t.txid);
+    const blockTxids = blockTxs.map((t) => t.txid);
     const firstHash = blockTxs[0] ? blockTxs[0].blockHash : block!.hash;
     const [coinsForTx, mempoolTxs, blocksForHash, blocksForHeight, p2pBlock] = await Promise.all([
       CoinStorage.collection.find({ chain, network, mintTxid: { $in: blockTxids } }).toArray(),
@@ -186,9 +183,9 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         chain,
         network,
         height: blockNum,
-        processed: true
+        processed: true,
       }),
-      this.deepScan ? this.getBlockForNumber(blockNum) : Promise.resolve({} as any)
+      this.deepScan ? this.getBlockForNumber(blockNum) : Promise.resolve({} as any),
     ]);
 
     const seenTxs = {} as { [txid: string]: ITransaction };
@@ -210,7 +207,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         model: 'block',
         err: true,
         type: 'CORRUPTED_BLOCK',
-        payload: { blockNum, txCount: block.transactionCount, foundTxs: blockTxs.length }
+        payload: { blockNum, txCount: block.transactionCount, foundTxs: blockTxs.length },
       };
 
       errors.push(error);
@@ -223,9 +220,9 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
     if (block && this.deepScan && p2pBlock) {
       const txs = p2pBlock.transactions ? p2pBlock.transactions.slice(1) : [];
       const spends = _.chain(txs)
-        .map(tx => tx.inputs)
+        .map((tx) => tx.inputs)
         .flatten()
-        .map(input => input.toObject())
+        .map((input) => input.toObject())
         .value();
 
       for (let spend of spends) {
@@ -233,7 +230,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
           chain,
           network,
           mintTxid: spend.prevTxId,
-          mintIndex: spend.outputIndex
+          mintIndex: spend.outputIndex,
         });
         if (found && found.spentHeight !== block.height) {
           success = false;
@@ -249,7 +246,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
               model: 'coin',
               err: true,
               type: 'MISSING_INPUT',
-              payload: { coin: { mintTxid: spend.prevTxId, mintIndex: spend.outputIndex }, blockNum }
+              payload: { coin: { mintTxid: spend.prevTxId, mintIndex: spend.outputIndex }, blockNum },
             };
             errors.push(error);
             if (log) {
@@ -305,7 +302,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
       }
     }
 
-    const mintHeights = _.uniq(coinsForTx.map(c => c.mintHeight));
+    const mintHeights = _.uniq(coinsForTx.map((c) => c.mintHeight));
     if (mintHeights.length > 1) {
       success = false;
       const error = { model: 'coin', err: true, type: 'COIN_HEIGHT_MISMATCH', payload: { blockNum } };
@@ -345,7 +342,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
             model: 'coin+transactions',
             err: true,
             type: 'VALUE_MISMATCH',
-            payload: { tx, coins, blockNum }
+            payload: { tx, coins, blockNum },
           };
           errors.push(error);
           if (log) {
@@ -361,7 +358,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         model: 'block',
         err: true,
         type: 'MISSING_BLOCK',
-        payload: { blockNum }
+        payload: { blockNum },
       };
       errors.push(error);
       if (log) {
@@ -375,7 +372,7 @@ export class VerificationPeer extends BitcoinP2PWorker implements IVerificationP
         model: 'block',
         err: true,
         type: 'DUPE_BLOCKHEIGHT',
-        payload: { blockNum, blocksForHeight }
+        payload: { blockNum, blocksForHeight },
       };
       errors.push(error);
       if (log) {

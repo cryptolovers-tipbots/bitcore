@@ -1,5 +1,5 @@
 var Providers = {
-  BitPay: require('./bitpay')
+  Astracore: require('./bitpay'),
   //  Bitstamp: require('./bitstamp'), // no longer used
 };
 

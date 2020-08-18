@@ -4,21 +4,20 @@ var buffer = require('buffer');
 
 var chai = require('chai');
 var should = chai.should();
-var bitcore = require('../../');
-var Script = bitcore.Script;
-var Transaction = bitcore.Transaction;
+var astracore = require('../../');
+var Script = astracore.Script;
+var Transaction = astracore.Transaction;
 var sighash = Transaction.sighash;
 
 var vectors_sighash = require('../data/sighash.json');
 
-describe('sighash', function() {
-
-  vectors_sighash.forEach(function(vector, i) {
+describe('sighash', function () {
+  vectors_sighash.forEach(function (vector, i) {
     if (i === 0) {
       // First element is just a row describing the next ones
       return;
     }
-    it('test vector from bitcoind #' + i + ' (' + vector[4].substring(0, 16) + ')', function() {
+    it('test vector from bitcoind #' + i + ' (' + vector[4].substring(0, 16) + ')', function () {
       var txbuf = Buffer.from(vector[0], 'hex');
       var scriptbuf = Buffer.from(vector[1], 'hex');
       var subscript = Script(scriptbuf);

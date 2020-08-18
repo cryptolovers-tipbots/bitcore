@@ -1,28 +1,28 @@
-# Bitcore Wallet Service
+# Astracore Wallet Service
 
-[![NPM Package](https://img.shields.io/npm/v/bitcore-wallet-service.svg?style=flat-square)](https://www.npmjs.org/package/bitcore-wallet-service)
-[![Build Status](https://img.shields.io/travis/bitpay/bitcore-wallet-service.svg?branch=master&style=flat-square)](https://travis-ci.org/bitpay/bitcore-wallet-service)
-[![Coverage Status](https://coveralls.io/repos/bitpay/bitcore-wallet-service/badge.svg?branch=master)](https://coveralls.io/r/bitpay/bitcore-wallet-service?branch=master)
+[![NPM Package](https://img.shields.io/npm/v/astracore-wallet-service.svg?style=flat-square)](https://www.npmjs.org/package/astracore-wallet-service)
+[![Build Status](https://img.shields.io/travis/bitpay/astracore-wallet-service.svg?branch=master&style=flat-square)](https://travis-ci.org/bitpay/astracore-wallet-service)
+[![Coverage Status](https://coveralls.io/repos/bitpay/astracore-wallet-service/badge.svg?branch=master)](https://coveralls.io/r/bitpay/astracore-wallet-service?branch=master)
 
-**A Multisig HD Bitcore Wallet Service.**
+**A Multisig HD Astracore Wallet Service.**
 
 ## Description
 
-Bitcore Wallet Service facilitates multisig HD wallets creation and operation through a (hopefully) simple and intuitive REST API.
+Astracore Wallet Service facilitates multisig HD wallets creation and operation through a (hopefully) simple and intuitive REST API.
 
 BWS can usually be installed within minutes and accommodates all the needed infrastructure for peers in a multisig wallet to communicate and operate – with minimum server trust.
 
-See [bitcore-wallet-client](https://github.com/bitpay/bitcore/tree/master/packages/bitcore-wallet-client) for the _official_ client library that communicates to BWS and verifies its response. Also check [bitcore-wallet](https://github.com/bitpay/bitcore/tree/master/packages/bitcore-wallet) for a simple CLI wallet implementation that relies on BWS.
+See [astracore-wallet-client](https://github.com/bitpay/astracore/tree/master/packages/astracore-wallet-client) for the _official_ client library that communicates to BWS and verifies its response. Also check [astracore-wallet](https://github.com/bitpay/astracore/tree/master/packages/astracore-wallet) for a simple CLI wallet implementation that relies on BWS.
 
 BWS is been used in production enviroments for [Copay Wallet](https://copay.io), [Bitpay App wallet](https://bitpay.com/wallet) and others.
 
-More about BWS at https://blog.bitpay.com/announcing-the-bitcore-wallet-suite/
+More about BWS at https://blog.bitpay.com/announcing-the-astracore-wallet-suite/
 
 ## Getting Started
 
 ```sh
- git clone https://github.com/bitpay/bitcore-wallet-service.git
- cd bitcore-wallet-service
+ git clone https://github.com/bitpay/astracore-wallet-service.git
+ cd astracore-wallet-service
  npm install
  npm start
 ```
@@ -31,7 +31,7 @@ This will launch the BWS service (with default settings) at `http://localhost:32
 
 BWS needs mongoDB. You can configure the connection at `config.js`
 
-BWS supports SSL and Clustering. For a detailed guide on installing BWS with extra features see [Installing BWS](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/installation.md).
+BWS supports SSL and Clustering. For a detailed guide on installing BWS with extra features see [Installing BWS](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/installation.md).
 
 BWS uses by default a Request Rate Limitation to CreateWallet endpoint. If you need to modify it, check defaults.js' `Defaults.RateLimit`
 
@@ -48,7 +48,7 @@ BWS can be used with PM2 with the provided `app.js` script:
 - Private keys are never sent to BWS. Copayers store them locally.
 - Extended public keys are stored on BWS. This allows BWS to easily check wallet balance, send offline notifications to copayers, etc.
 - During wallet creation, the initial copayer creates a wallet secret that contains a private key. All copayers need to prove they have the secret by signing their information with this private key when joining the wallet. The secret should be shared using secured channels.
-- A copayer could join the wallet more than once, and there is no mechanism to prevent this. See [wallet](https://github.com/bitpay/bitcore/tree/master/packages/bitcore-wallet)'s confirm command, for a method for confirming copayers.
+- A copayer could join the wallet more than once, and there is no mechanism to prevent this. See [wallet](https://github.com/bitpay/astracore/tree/master/packages/astracore-wallet)'s confirm command, for a method for confirming copayers.
 - All BWS responses are verified:
   - Addresses and change addresses are derived independently and locally by the copayers from their local data.
   - TX Proposals templates are signed by copayers and verified by others, so the BWS cannot create or tamper with them.
@@ -69,7 +69,7 @@ You can add your certificates at the config.js using:
   // CAroot: '', // ex. 'AddTrustExternalCARoot.crt'
 ```
 
-@dabura667 made a report about how to use letsencrypt with BWS: https://github.com/bitpay/bitcore-wallet-service/issues/423
+@dabura667 made a report about how to use letsencrypt with BWS: https://github.com/bitpay/astracore-wallet-service/issues/423
 
 ## TX proposal life cycle
 
@@ -88,21 +88,21 @@ The are plenty example creating and sending proposals in the `/test/integration`
 
 ### Requirements
 
-- bitcore-node running on http://localhost:3000
+- astracore-node running on http://localhost:3000
 - bws running locally on http://localhost:3232/bws/api
 - mongod running
 - copay running on port: 8100
 - bitcoin-core running on regtest mode (blue icon logo)
 
 > mongo topology crashes sometimes due to notifications being incompatible in a web browser
-> **bitcore-wallet-service/lib/notificationbroadcaster.js**
+> **astracore-wallet-service/lib/notificationbroadcaster.js**
 > Note: If testing on a PC browser, comment out notificationbroadcaster.js to disable notifications.
 
 ### Steps:
 
-**bitcore.config.json**
+**astracore.config.json**
 
-1.  Add regtest to bitcore.config.json.
+1.  Add regtest to astracore.config.json.
 
 ```
 "regtest": {
@@ -122,7 +122,7 @@ The are plenty example creating and sending proposals in the `/test/integration`
         }
 ```
 
-**bitcore-wallet-service/config.js**
+**astracore-wallet-service/config.js**
 
 2. Point testnet to http://localhost:3000 in BWS/config.js and set regtestEnabled to true.
 
@@ -130,7 +130,7 @@ The are plenty example creating and sending proposals in the `/test/integration`
 blockchainExplorerOpts: {
     btc: {
       livenet: {
-        url: 'https://api.bitcore.io'
+        url: 'https://api.astracore.io'
       },
       testnet: {
         // set url to http://localhost:3000 here
@@ -213,7 +213,7 @@ In order to access a wallet, clients are required to send the headers:
 
 Identity is the Peer-ID, this will identify the peer and its wallet. Signature is the current request signature, using `requestSigningKey`, the `m/1/1` derivative of the Extended Private Key.
 
-See [Bitcore Wallet Client](https://github.com/bitpay/bitcore/tree/master/packages/bitcore-wallet-client) for implementation details.
+See [Astracore Wallet Client](https://github.com/bitpay/astracore/tree/master/packages/astracore-wallet-client) for implementation details.
 
 ## GET Endpoints
 
@@ -221,7 +221,7 @@ See [Bitcore Wallet Client](https://github.com/bitpay/bitcore/tree/master/packag
 
 Returns:
 
-- Wallet object. (see [fields on the source code](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/wallet.ts)).
+- Wallet object. (see [fields on the source code](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/wallet.ts)).
 
 ### `/v1/txhistory/`: Get Wallet's transaction history
 
@@ -248,7 +248,7 @@ Returns:
 
 Returns:
 
-- List of pending TX Proposals. (see [fields on the source code](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/txproposal.ts))
+- List of pending TX Proposals. (see [fields on the source code](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/txproposal.ts))
 
 - Uses cashaddr without prefix for BCH
 
@@ -260,7 +260,7 @@ Optional Arguments:
 
 Returns:
 
-- List of Addresses object: (https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/address.ts). This call is mainly provided so the client check this addresses for incoming transactions (using a service like [Insight](https://insight.bitcore.io)
+- List of Addresses object: (https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/address.ts). This call is mainly provided so the client check this addresses for incoming transactions (using a service like [Insight](https://insight.astracore.io)
 - Returns cashaddr without prefix for BCH
 
 ### `/v1/balance/`: Get Wallet's balance
@@ -339,19 +339,19 @@ Required Arguments:
 
 Returns:
 
-- TX Proposal object. (see [fields on the source code]https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/txproposal.ts)). `.id` is probably needed in this case.
+- TX Proposal object. (see [fields on the source code]https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/txproposal.ts)). `.id` is probably needed in this case.
 
 ### `/v2/txproposals/:id/publish`: Publish the previously created `temporary` tx proposal
 
 Returns:
 
-- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/txproposal.ts)).
+- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/txproposal.ts)).
 
 ### `/v3/addresses/`: Request a new main address from wallet . (creates an address on normal conditions)
 
 Returns:
 
-- Address object: (https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/address.ts). Note that `path` is returned so client can derive the address independently and check server's response.
+- Address object: (https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/address.ts). Note that `path` is returned so client can derive the address independently and check server's response.
 
 ### `/v1/txproposals/:id/signatures/`: Sign a transaction proposal
 
@@ -361,19 +361,19 @@ Required Arguments:
 
 Returns:
 
-- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/txproposal.ts)). `.status` is probably needed in this case.
+- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/txproposal.ts)). `.status` is probably needed in this case.
 
 ### `/v1/txproposals/:id/broadcast/`: Broadcast a transaction proposal
 
 Returns:
 
-- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/txproposal.ts)). `.status` is probably needed in this case.
+- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/txproposal.ts)). `.status` is probably needed in this case.
 
 ### `/v1/txproposals/:id/rejections`: Reject a transaction proposal
 
 Returns:
 
-- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/txproposal.ts)). `.status` is probably needed in this case.
+- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/txproposal.ts)). `.status` is probably needed in this case.
 
 ### `/v1/addresses/scan`: Start an address scan process looking for activity.
 
@@ -397,7 +397,7 @@ Required Arguments:
 
 Returns:
 
-- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-wallet-service/src/lib/model/txproposal.ts)). `.id` is probably needed in this case.
+- TX Proposal object. (see [fields on the source code](https://github.com/bitpay/astracore/blob/master/packages/astracore-wallet-service/src/lib/model/txproposal.ts)). `.id` is probably needed in this case.
 
 ### `/v1/txconfirmations/:txid`: Unsubscribe from transaction `txid` and no longer listen to its confirmation
 
@@ -418,10 +418,10 @@ Recomended to complete config.js file:
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/bitpay/bitcore/blob/master/Contributing.md) on the main bitcore repo for information about how to contribute.
+See [CONTRIBUTING.md](https://github.com/bitpay/astracore/blob/master/Contributing.md) on the main astracore repo for information about how to contribute.
 
 ## License
 
-Code released under [the MIT license](https://github.com/bitpay/bitcore/blob/master/LICENSE).
+Code released under [the MIT license](https://github.com/bitpay/astracore/blob/master/LICENSE).
 
-Copyright 2013-2019 BitPay, Inc. Bitcore is a trademark maintained by BitPay, Inc.
+Copyright 2013-2019 Astracore, Inc. Astracore is a trademark maintained by Astracore, Inc.

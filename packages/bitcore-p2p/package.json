@@ -1,7 +1,7 @@
 {
-  "name": "bitcore-p2p",
+  "name": "astracore-p2p",
   "version": "8.22.0",
-  "description": "Interface to the bitcoin P2P network for bitcore",
+  "description": "Interface to the bitcoin P2P network for astracore",
   "main": "index.js",
   "scripts": {
     "test": "gulp test",
@@ -12,20 +12,20 @@
   },
   "keywords": [
     "bitcoin",
-    "bitcore"
+    "astracore"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/bitpay/bitcore-p2p.git"
+    "url": "https://github.com/bitpay/astracore-p2p.git"
   },
   "dependencies": {
-    "bitcore-lib": "^8.22.0",
+    "astracore-lib": "^8.22.0",
     "bloom-filter": "^0.2.0",
     "buffers": "bitpay/node-buffers#v0.1.2-bitpay",
     "socks5-client": "^0.3.6"
   },
   "devDependencies": {
-    "bitcore-build": "^8.22.0",
+    "astracore-build": "^8.22.0",
     "brfs": "^1.2.0",
     "chai": "~1.10.0",
     "gulp": "^4.0.0",

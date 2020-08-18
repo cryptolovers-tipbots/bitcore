@@ -1,4 +1,4 @@
-# Bitcore Build
+# Astracore Build
 
 **A helper to add tasks to gulp.**
 
@@ -7,16 +7,16 @@
 Install with:
 
 ```sh
-npm install bitcore-build
+npm install astracore-build
 ```
 
 And use and require in your gulp file:
 
 ```javascript
 var gulp = require('gulp');
-var bitcoreTasks = require('bitcore-build');
+var astracoreTasks = require('astracore-build');
 
-bitcoreTasks('submodule');
+astracoreTasks('submodule');
 gulp.task('default', ['lint', 'test', 'browser', 'coverage']);
 ```
 
@@ -26,16 +26,16 @@ gulp.task('default', ['lint', 'test', 'browser', 'coverage']);
 - If the module is node-only, avoid adding the browser tasks with:
 
 ```javascript
-var bitcoreTasks = require('bitcore-build');
-bitcoreTasks('submodule', {skipBrowsers: true});
+var astracoreTasks = require('astracore-build');
+astracoreTasks('submodule', { skipBrowsers: true });
 ```
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/bitpay/bitcore/blob/master/Contributing.md) on the main bitcore repo for information about how to contribute.
+See [CONTRIBUTING.md](https://github.com/bitpay/astracore/blob/master/Contributing.md) on the main astracore repo for information about how to contribute.
 
 ## License
 
-Code released under [the MIT license](https://github.com/bitpay/bitcore/blob/master/LICENSE).
+Code released under [the MIT license](https://github.com/bitpay/astracore/blob/master/LICENSE).
 
-Copyright 2013-2019 BitPay, Inc. Bitcore is a trademark maintained by BitPay, Inc.
+Copyright 2013-2019 Astracore, Inc. Astracore is a trademark maintained by Astracore, Inc.

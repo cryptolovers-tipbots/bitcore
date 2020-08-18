@@ -5,12 +5,12 @@ import { Level } from './storage/level';
 import { Mongo } from './storage/mongo';
 import { KeyImport } from './wallet';
 
-const bitcoreLib = require('crypto-wallet-core').BitcoreLib;
+const astracoreLib = require('crypto-wallet-core').AstracoreLib;
 
 export class Storage {
   path: string;
   db: Array<Mongo | Level>;
-  collection: 'bitcoreWallets';
+  collection: 'astracoreWallets';
   url?: string;
   errorIfExists?: boolean;
   createIfMissing: boolean;
@@ -26,7 +26,7 @@ export class Storage {
     this.errorIfExists = errorIfExists;
     const dbMap = {
       Mongo,
-      Level
+      Level,
     };
     this.db = [];
     if (dbMap[storageType]) {
@@ -129,7 +129,7 @@ export class Storage {
           address,
           encryptionKey,
           keepAlive,
-          open
+          open,
         });
         keys.push(key);
       } catch (err) {
@@ -145,7 +145,7 @@ export class Storage {
     let open = true;
     for (const key of keys) {
       let { pubKey } = key;
-      pubKey = pubKey || new bitcoreLib.PrivateKey(key.privKey).publicKey.toString();
+      pubKey = pubKey || new astracoreLib.PrivateKey(key.privKey).publicKey.toString();
       let payload = {};
       if (pubKey && key.privKey && encryptionKey) {
         const toEncrypt = JSON.stringify(key);

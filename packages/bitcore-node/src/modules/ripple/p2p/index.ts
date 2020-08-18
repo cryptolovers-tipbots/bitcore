@@ -41,7 +41,7 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
     this.events = new EventEmitter();
     this.invCache = {};
     this.invCacheLimits = {
-      TX: 100000
+      TX: 100000,
     };
     this.disconnecting = false;
   }
@@ -135,7 +135,7 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
   }
 
   async syncWallets() {
-    return new Promise(async resolve => {
+    return new Promise(async (resolve) => {
       try {
         const { chain, network } = this;
 
@@ -173,8 +173,8 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
                   network: this.network,
                   address: walletAddress.address,
                   args: {
-                    ...(lastTx && !this.chainConfig.freshSync && { startTx: lastTx.txid })
-                  }
+                    ...(lastTx && !this.chainConfig.freshSync && { startTx: lastTx.txid }),
+                  },
                 });
                 if (txs.length) {
                   logger.info(`Saving ${txs.length} transactions`);
@@ -183,9 +183,9 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
                 const blockCoins = new Array<IXrpCoin>();
 
                 for (const tx of txs) {
-                  const bitcoreTx = this.provider.transform(tx, network) as IXrpTransaction;
-                  const bitcoreCoins = this.provider.transformToCoins(tx, network);
-                  const { transaction, coins } = await this.provider.tag(chain, network, bitcoreTx, bitcoreCoins);
+                  const astracoreTx = this.provider.transform(tx, network) as IXrpTransaction;
+                  const astracoreCoins = this.provider.transformToCoins(tx, network);
+                  const { transaction, coins } = await this.provider.tag(chain, network, astracoreTx, astracoreCoins);
                   blockTxs.push(transaction);
                   blockCoins.push(...coins);
                 }
@@ -195,7 +195,7 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
                   coins: blockCoins,
                   chain,
                   network,
-                  initialSyncComplete: false
+                  initialSyncComplete: false,
                 });
 
                 await CacheStorage.setForWallet(
@@ -206,7 +206,7 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
                 );
                 done++;
                 cb();
-              }
+              },
             })
           )
           .on('finish', async () => {
@@ -254,7 +254,7 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
       const block = await client.getLedger({
         ledgerVersion: currentHeight,
         includeTransactions: true,
-        includeAllData: true
+        includeAllData: true,
       });
       if (!block) {
         await wait(2000);
@@ -264,9 +264,9 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
       const coinsAndTxs = (block.transactions || [])
         .map((tx: any) => ({
           tx: this.provider.transform(tx, network, transformedBlock),
-          coins: this.provider.transformToCoins(tx, network)
+          coins: this.provider.transformToCoins(tx, network),
         }))
-        .filter(data => {
+        .filter((data) => {
           return 'txid' in data.tx && data.tx.txid != null;
         }) as Array<{ tx: IXrpTransaction; coins: Array<IXrpCoin> }>;
       const blockTxs = new Array<IXrpTransaction>();
@@ -287,7 +287,7 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
         block: transformedBlock,
         transactions: blockTxs,
         coins: blockCoins,
-        initialSyncComplete: true
+        initialSyncComplete: true,
       });
 
       this.maybeLog(chain, network, startHeight, currentHeight, startTime, lastLog);
@@ -353,7 +353,7 @@ export class XrpP2pWorker extends BaseP2PWorker<any> {
   }
 
   async syncDone() {
-    return new Promise(resolve => this.events.once('SYNCDONE', resolve));
+    return new Promise((resolve) => this.events.once('SYNCDONE', resolve));
   }
 
   async stop() {

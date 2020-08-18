@@ -1,4 +1,4 @@
 'use strict';
 
-var startGulp = require('bitcore-build');
+var startGulp = require('astracore-build');
 module.exports = startGulp('lib');

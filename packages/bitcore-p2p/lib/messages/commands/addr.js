@@ -2,12 +2,12 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
+var astracore = require('astracore-lib');
 var utils = require('../utils');
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
-var BufferReader = bitcore.encoding.BufferReader;
-var BufferWriter = bitcore.encoding.BufferWriter;
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
+var BufferReader = astracore.encoding.BufferReader;
+var BufferWriter = astracore.encoding.BufferWriter;
 
 /**
  * @param {Array=} arg - An array of addrs
@@ -21,16 +21,16 @@ function AddrMessage(arg, options) {
   $.checkArgument(
     _.isUndefined(arg) ||
       (Array.isArray(arg) &&
-       !_.isUndefined(arg[0].services) &&
-       !_.isUndefined(arg[0].ip) &&
-       !_.isUndefined(arg[0].port)),
+        !_.isUndefined(arg[0].services) &&
+        !_.isUndefined(arg[0].ip) &&
+        !_.isUndefined(arg[0].port)),
     'First argument is expected to be an array of addrs'
   );
   this.addresses = arg;
 }
 inherits(AddrMessage, Message);
 
-AddrMessage.prototype.setPayload = function(payload) {
+AddrMessage.prototype.setPayload = function (payload) {
   var parser = new BufferReader(payload);
 
   var addrCount = parser.readVarintNum();
@@ -48,7 +48,7 @@ AddrMessage.prototype.setPayload = function(payload) {
   utils.checkFinished(parser);
 };
 
-AddrMessage.prototype.getPayload = function() {
+AddrMessage.prototype.getPayload = function () {
   var bw = new BufferWriter();
   bw.writeVarintNum(this.addresses.length);
 

@@ -7,14 +7,14 @@ import { RippleStateProvider } from './csp';
 export class RippleEventAdapter {
   stopping = false;
   clients: RippleAPI[] = [];
-  constructor(protected services: BaseModule['bitcoreServices']) {}
+  constructor(protected services: BaseModule['astracoreServices']) {}
 
   async start() {
     this.stopping = false;
     console.log('Starting websocket adapter for Ripple');
     const networks = this.services.Config.chainNetworks()
-      .filter(c => c.chain === 'XRP')
-      .map(c => c.network);
+      .filter((c) => c.chain === 'XRP')
+      .map((c) => c.network);
     const chain = 'XRP';
     const csp = this.services.CSP.get({ chain }) as RippleStateProvider;
 
@@ -22,7 +22,7 @@ export class RippleEventAdapter {
       try {
         const client = await csp.getClient(network);
 
-        client.on('ledger', async ledger => {
+        client.on('ledger', async (ledger) => {
           this.services.Event.blockEvent.emit('block', { chain, network, ...ledger });
         });
 
@@ -32,7 +32,7 @@ export class RippleEventAdapter {
           }
         });
 
-        client.connection.on('transaction', async tx => {
+        client.connection.on('transaction', async (tx) => {
           const address = tx.transaction.Account;
           const transformedTx = { ...csp.transform(tx, network), wallets: new Array<ObjectId>() };
           if ('chain' in transformedTx) {
@@ -49,7 +49,7 @@ export class RippleEventAdapter {
 
         await client.connection.request({
           method: 'subscribe',
-          streams: ['ledger', 'transactions_proposed']
+          streams: ['ledger', 'transactions_proposed'],
         });
       } catch (e) {
         logger.error('Error connecting to XRP', e.message);

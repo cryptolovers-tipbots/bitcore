@@ -2,9 +2,9 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
+var astracore = require('astracore-lib-cash');
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
 
 /**
  * @param {Transaction=} arg - An instance of Transaction
@@ -27,7 +27,7 @@ function TransactionMessage(arg, options) {
 }
 inherits(TransactionMessage, Message);
 
-TransactionMessage.prototype.setPayload = function(payload) {
+TransactionMessage.prototype.setPayload = function (payload) {
   if (this.Transaction.prototype.fromBuffer) {
     this.transaction = new this.Transaction().fromBuffer(payload);
   } else {
@@ -35,7 +35,7 @@ TransactionMessage.prototype.setPayload = function(payload) {
   }
 };
 
-TransactionMessage.prototype.getPayload = function() {
+TransactionMessage.prototype.getPayload = function () {
   return this.transaction.toBuffer();
 };
 

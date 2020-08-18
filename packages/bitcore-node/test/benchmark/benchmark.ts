@@ -1,5 +1,5 @@
-const bitcoreLib = require('bitcore-lib');
-const { Transaction, PrivateKey } = bitcoreLib;
+const astracoreLib = require('astracore-lib');
+const { Transaction, PrivateKey } = astracoreLib;
 const UnspentOutput = Transaction.UnspentOutput;
 
 import config from '../../src/config';
@@ -57,22 +57,22 @@ function generateBlock(blockSizeMb: number, previousBlock?: BitcoinBlockType): B
           bits: parseInt('207fffff', 16),
           difficulty: 4.656542373906925e-10,
           chainwork: '0000000000000000000000000000000000000000000000000000000000000a98',
-          prevHash: prevHash
+          prevHash: prevHash,
         };
-      }
-    }
+      },
+    },
   };
   let transactions = new Array<any>();
   if (previousBlock) {
     for (let transaction of previousBlock.transactions) {
       // each transaction should have one input and one output
-      const utxos = transaction.outputs.map(output => {
+      const utxos = transaction.outputs.map((output) => {
         return new UnspentOutput({
           txid: transaction.hash,
           vout: 0,
           address: output.script.toAddress('mainnet'),
           scriptPubKey: output.script.toBuffer().toString('hex'),
-          amount: Number(txAmount)
+          amount: Number(txAmount),
         });
       });
       let newTx = new Transaction().from(utxos);
@@ -109,7 +109,7 @@ function newAddress() {
 function startBenchmarkDatabase() {
   const storageArgs = {
     dbHost: config.dbHost,
-    dbName: 'bitcore-benchmark'
+    dbName: 'astracore-benchmark',
   };
 
   return Storage.start(storageArgs);

@@ -1,23 +1,19 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
-const bitcore = require('crypto-wallet-core').BitcoreLib;
+const astracore = require('crypto-wallet-core').AstracoreLib;
 const crypto = {
   createHash,
   createCipheriv,
   createDecipheriv,
-  randomBytes
+  randomBytes,
 };
 
 export function shaHash(data, algo = 'sha256') {
-  let hash = crypto
-    .createHash(algo)
-    .update(data, 'utf8')
-    .digest('hex')
-    .toUpperCase();
+  let hash = crypto.createHash(algo).update(data, 'utf8').digest('hex').toUpperCase();
   return hash;
 }
 
-const SHA512 = data => shaHash(data, 'sha512');
-const SHA256 = data => shaHash(data, 'sha256');
+const SHA512 = (data) => shaHash(data, 'sha512');
+const SHA256 = (data) => shaHash(data, 'sha256');
 const algo = 'aes-256-cbc';
 const _ = require('lodash');
 
@@ -65,10 +61,7 @@ function sha512KDF(passphrase: string, salt: Buffer, derivationOptions: { rounds
   }
   let derivation = Buffer.concat([new Buffer(''), new Buffer(passphrase), salt]);
   for (let i = 0; i < rounds; i++) {
-    derivation = crypto
-      .createHash('sha512')
-      .update(derivation)
-      .digest();
+    derivation = crypto.createHash('sha512').update(derivation).digest();
   }
   return derivation.toString('hex');
 }
@@ -93,7 +86,7 @@ export function bitcoinCoreDecrypt(
       let salt = line.salt;
       let derivationOptions = {
         method: derivationMethods[line.derivationMethod],
-        rounds: line.rounds
+        rounds: line.rounds,
       };
       let hashFunc = hashPassphrase(derivationOptions);
       let key = hashFunc(passphrase, salt, derivationOptions);
@@ -101,14 +94,14 @@ export function bitcoinCoreDecrypt(
     } else {
       let privKey = decrypt({
         key: master,
-        iv: bitcore.crypto.Hash.sha256sha256(Buffer.from(line.pubKey, 'hex')),
-        cipherText
+        iv: astracore.crypto.Hash.sha256sha256(Buffer.from(line.pubKey, 'hex')),
+        cipherText,
       });
       const address = line.address.split(':');
       let keyObj = {
         privKey,
         pubKey: line.pubKey,
-        address: address[address.length - 1]
+        address: address[address.length - 1],
       };
       jsonlDecrypted.push(keyObj);
     }
@@ -151,5 +144,5 @@ export const Encryption = {
   encryptPrivateKey,
   decryptPrivateKey,
   generateEncryptionKey,
-  bitcoinCoreDecrypt
+  bitcoinCoreDecrypt,
 };

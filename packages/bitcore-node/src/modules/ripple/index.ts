@@ -6,7 +6,7 @@ import { XrpP2pWorker } from './p2p';
 import { XrpVerificationPeer } from './p2p/verification';
 
 export default class XRPModule extends BaseModule {
-  constructor(services: BaseModule['bitcoreServices']) {
+  constructor(services: BaseModule['astracoreServices']) {
     super(services);
     services.CSP.registerService('XRP', new RippleStateProvider());
     services.Api.app.use(XrpRoutes);

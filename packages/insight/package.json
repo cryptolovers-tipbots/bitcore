@@ -1,12 +1,12 @@
 {
   "name": "@bitpay/insight-previous",
-  "description": "A blockchain explorer for Bitcore",
+  "description": "A blockchain explorer for Astracore",
   "version": "8.22.0",
-  "repository": "git://github.com/bitpay/bitcore.git",
+  "repository": "git://github.com/bitpay/astracore.git",
   "bugs": {
-    "url": "https://github.com/bitpay/bitcore/issues"
+    "url": "https://github.com/bitpay/astracore/issues"
   },
-  "homepage": "https://github.com/bitpay/bitcore",
+  "homepage": "https://github.com/bitpay/astracore",
   "license": "MIT",
   "private": true,
   "keywords": [
@@ -15,7 +15,7 @@
     "blockchain",
     "block explorer",
     "bitcoin",
-    "bitcore",
+    "astracore",
     "API"
   ],
   "config": {
@@ -26,14 +26,14 @@
   },
   "scripts": {
     "clean": "ionic-app-scripts clean",
-    "build:prod": "ENV=prod CHAIN=ALL NETWORK=mainnet API_PREFIX=https://api.bitcore.io/api npm run ionic:build",
+    "build:prod": "ENV=prod CHAIN=ALL NETWORK=mainnet API_PREFIX=https://api.astracore.io/api npm run ionic:build",
     "serve:prod": "npm run clean && npm run build:prod && npm run serve",
     "serve": "serve www",
     "ionic:build": "ionic-app-scripts build",
     "ionic:serve": "ionic-app-scripts serve --port 8200",
     "postinstall": "./node_modules/.bin/webdriver-manager update --gecko false",
     "start": "npm run ionic:serve",
-    "start:prod": "ENV=prod CHAIN=ALL NETWORK=mainnet API_PREFIX=https://api.bitcore.io/api npm run ionic:serve",
+    "start:prod": "ENV=prod CHAIN=ALL NETWORK=mainnet API_PREFIX=https://api.astracore.io/api npm run ionic:serve",
     "test": "ng test --watch=false --code-coverage --no-progress",
     "fix:prettier": "prettier '{*,**/*}.{js,ts,md,json,css}' --write",
     "fix:tslint": "tslint --type-check --fix --project .",

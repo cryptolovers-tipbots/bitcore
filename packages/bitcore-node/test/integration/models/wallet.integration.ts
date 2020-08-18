@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { Wallet } from 'bitcore-client';
+import { Wallet } from 'astracore-client';
 import { Api } from '../../../src/services/api';
 import { AsyncRPC } from '../../../src/rpc';
 import { Event } from '../../../src/services/event';
@@ -16,7 +16,7 @@ const chainConfig = config.chains[chain][network];
 const creds = chainConfig.rpc;
 const rpc = new AsyncRPC(creds.username, creds.password, creds.host, creds.port);
 
-describe('Wallet Model', function() {
+describe('Wallet Model', function () {
   this.timeout(50000);
 
   before(async () => {
@@ -38,14 +38,14 @@ describe('Wallet Model', function() {
         chain,
         network,
         baseUrl,
-        password
+        password,
       });
 
       expect(lockedWallet).to.have.includes({
         name: walletName,
         chain,
         network,
-        baseUrl: 'http://localhost:3000/api'
+        baseUrl: 'http://localhost:3000/api',
       });
       expect(lockedWallet).to.have.property('pubKey');
       expect(lockedWallet).to.have.property('password');
@@ -56,7 +56,7 @@ describe('Wallet Model', function() {
         .find({
           name: walletName,
           chain,
-          network
+          network,
         })
         .toArray();
 
@@ -65,7 +65,7 @@ describe('Wallet Model', function() {
         chain,
         network,
         path: null,
-        singleAddress: null
+        singleAddress: null,
       });
       expect(findCreatedWallet[0]).to.have.property('pubKey');
       expect(findCreatedWallet[0]).to.have.property('path');
@@ -80,7 +80,7 @@ describe('Wallet Model', function() {
       address1 = await rpc.getnewaddress('');
 
       const importAddressJSON = {
-        keys: [{ address: address1 }]
+        keys: [{ address: address1 }],
       };
 
       const unlockedWallet = await lockedWallet.unlock(password);
@@ -90,7 +90,7 @@ describe('Wallet Model', function() {
       const findWalletResult = await WalletStorage.collection.findOne({
         name: walletName,
         chain,
-        network
+        network,
       });
 
       if (findWalletResult && findWalletResult._id) {
@@ -99,7 +99,7 @@ describe('Wallet Model', function() {
             wallet: findWalletResult._id,
             chain,
             network,
-            address: address1
+            address: address1,
           })
           .toArray();
 

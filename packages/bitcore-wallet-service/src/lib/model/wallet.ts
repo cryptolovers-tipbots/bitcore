@@ -12,11 +12,11 @@ const Common = require('../common');
 const Constants = Common.Constants,
   Defaults = Common.Defaults,
   Utils = Common.Utils;
-const Bitcore = {
-  btc: require('bitcore-lib'),
-  bch: require('bitcore-lib-cash'),
-  eth: require('bitcore-lib'),
-  xrp: require('bitcore-lib')
+const Astracore = {
+  btc: require('astracore-lib'),
+  bch: require('astracore-lib-cash'),
+  eth: require('astracore-lib'),
+  xrp: require('astracore-lib'),
 };
 
 export interface IWallet {
@@ -103,7 +103,7 @@ export class Wallet {
     x.addressType = opts.addressType || Constants.SCRIPT_TYPES.P2SH;
 
     x.addressManager = AddressManager.create({
-      derivationStrategy: x.derivationStrategy
+      derivationStrategy: x.derivationStrategy,
     });
     x.usePurpose48 = opts.usePurpose48;
 
@@ -135,7 +135,7 @@ export class Wallet {
     x.singleAddress = !!obj.singleAddress;
     x.status = obj.status;
     x.publicKeyRing = obj.publicKeyRing;
-    x.copayers = _.map(obj.copayers, copayer => {
+    x.copayers = _.map(obj.copayers, (copayer) => {
       return Copayer.fromObj(copayer);
     });
     x.pubKey = obj.pubKey;
@@ -190,18 +190,12 @@ export class Wallet {
     $.checkState(this.isComplete());
 
     const chain = ChainService.getChain(this.coin).toLowerCase();
-    const bitcore = Bitcore[chain];
+    const astracore = Astracore[chain];
     const salt = config.BE_KEY_SALT || Defaults.BE_KEY_SALT;
 
-    var seed =
-      _.map(this.copayers, 'xPubKey')
-        .sort()
-        .join('') +
-      this.network +
-      this.coin +
-      salt;
-    seed = bitcore.crypto.Hash.sha256(new Buffer(seed));
-    const priv = bitcore.PrivateKey(seed, this.network);
+    var seed = _.map(this.copayers, 'xPubKey').sort().join('') + this.network + this.coin + salt;
+    seed = astracore.crypto.Hash.sha256(new Buffer(seed));
+    const priv = astracore.PrivateKey(seed, this.network);
 
     this.beAuthPrivateKey2 = priv.toString();
     // WARN!! => this will generate an uncompressed pub key.
@@ -209,7 +203,7 @@ export class Wallet {
   }
 
   _updatePublicKeyRing() {
-    this.publicKeyRing = _.map(this.copayers, copayer => {
+    this.publicKeyRing = _.map(this.copayers, (copayer) => {
       return _.pick(copayer, ['xPubKey', 'requestPubKey']);
     });
   }
@@ -235,12 +229,12 @@ export class Wallet {
       signature,
       selfSigned: true,
       restrictions: restrictions || {},
-      name: name || null
+      name: name || null,
     });
   }
 
   getCopayer(copayerId): Copayer {
-    return this.copayers.find(c => c.id == copayerId);
+    return this.copayers.find((c) => c.id == copayerId);
   }
 
   isComplete() {

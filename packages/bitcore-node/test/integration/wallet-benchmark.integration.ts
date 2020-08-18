@@ -8,9 +8,9 @@ import { Event } from '../../src/services/event';
 import { Api } from '../../src/services/api';
 import { WalletAddressStorage } from '../../src/models/walletAddress';
 import { WalletStorage, IWallet } from '../../src/models/wallet';
-import { ParseApiStream } from 'bitcore-client';
+import { ParseApiStream } from 'astracore-client';
 import { resetDatabase } from '../helpers';
-import { Wallet } from 'bitcore-client';
+import { Wallet } from 'astracore-client';
 import { ICoin, CoinStorage } from '../../src/models/coin';
 import { MongoBound } from '../../src/models/base';
 import { ObjectId } from 'mongodb';
@@ -28,7 +28,7 @@ async function checkWalletExists(pubKey, expectedAddress) {
   const dbWallet = await WalletStorage.collection.findOne({
     chain,
     network,
-    pubKey
+    pubKey,
   });
 
   // Verify the addresses match
@@ -36,7 +36,7 @@ async function checkWalletExists(pubKey, expectedAddress) {
     .find({
       chain,
       network,
-      wallet: dbWallet!._id
+      wallet: dbWallet!._id,
     })
     .toArray();
   expect(foundAddresses.length).to.eq(1);
@@ -46,7 +46,7 @@ async function checkWalletExists(pubKey, expectedAddress) {
 
 async function getWalletUtxos(wallet: Wallet) {
   const utxos = new Array<MongoBound<ICoin>>();
-  return new Promise<Array<MongoBound<ICoin>>>(resolve =>
+  return new Promise<Array<MongoBound<ICoin>>>((resolve) =>
     wallet
       .getUtxos()
       .pipe(new ParseApiStream())
@@ -74,7 +74,7 @@ async function checkWalletReceived(receivingWallet: IWallet, txid: string, addre
     chain,
     network,
     mintTxid: txid,
-    address: address
+    address: address,
   });
 
   expect(broadcastedOutput!.address).to.eq(address);
@@ -85,13 +85,13 @@ async function checkWalletReceived(receivingWallet: IWallet, txid: string, addre
   expect(broadcastedTransaction!.txid).to.eq(txid);
   expect(broadcastedTransaction!.fee).gt(0);
 
-  const txWallets = broadcastedTransaction!.wallets.map(w => w.toHexString());
+  const txWallets = broadcastedTransaction!.wallets.map((w) => w.toHexString());
   expect(txWallets.length).to.eq(2);
   expect(txWallets).to.include(receivingWallet!._id!.toHexString());
   expect(txWallets).to.include(sendingWallet!._id!.toHexString());
 }
 
-describe('Wallet Benchmark', function() {
+describe('Wallet Benchmark', function () {
   this.timeout(5000000);
   let p2pWorker: BitcoinP2PWorker;
 
@@ -116,11 +116,8 @@ describe('Wallet Benchmark', function() {
   describe('Wallet import', () => {
     it('should be able to create two wallets and have them interact', async () => {
       const seenCoins = new Set();
-      const socket = io.connect(
-        'http://localhost:3000',
-        { transports: ['websocket'] }
-      );
-      const connected = new Promise(r => {
+      const socket = io.connect('http://localhost:3000', { transports: ['websocket'] });
+      const connected = new Promise((r) => {
         socket.on('connect', () => {
           const room = `/${chain}/${network}/inv`;
           socket.emit('room', room);
@@ -136,7 +133,7 @@ describe('Wallet Benchmark', function() {
       p2pWorker = new BitcoinP2PWorker({
         chain,
         network,
-        chainConfig
+        chainConfig,
       });
       await p2pWorker.start();
 
@@ -157,8 +154,8 @@ describe('Wallet Benchmark', function() {
         const utxos = await checkWalletUtxos(wallet1, address1);
         await checkWalletUtxos(wallet2, address2);
         const tx = await rpc.call('createrawtransaction', [
-          utxos.map(utxo => ({ txid: utxo.mintTxid, vout: utxo.mintIndex })),
-          { [address1]: 0.1, [address2]: 0.1 }
+          utxos.map((utxo) => ({ txid: utxo.mintTxid, vout: utxo.mintIndex })),
+          { [address1]: 0.1, [address2]: 0.1 },
         ]);
         const fundedTx = await rpc.call('fundrawtransaction', [tx]);
         const signedTx = await rpc.signrawtx(fundedTx.hex);
@@ -181,11 +178,8 @@ describe('Wallet Benchmark', function() {
 
     it('should be able to create two wallets and have them interact, while syncing', async () => {
       const seenCoins = new Set();
-      const socket = io.connect(
-        'http://localhost:3000',
-        { transports: ['websocket'] }
-      );
-      const connected = new Promise(r => {
+      const socket = io.connect('http://localhost:3000', { transports: ['websocket'] });
+      const connected = new Promise((r) => {
         socket.on('connect', () => {
           const room = `/${chain}/${network}/inv`;
           socket.emit('room', room);
@@ -201,7 +195,7 @@ describe('Wallet Benchmark', function() {
       p2pWorker = new BitcoinP2PWorker({
         chain,
         network,
-        chainConfig
+        chainConfig,
       });
       await p2pWorker.start();
 
@@ -224,8 +218,8 @@ describe('Wallet Benchmark', function() {
         const utxos = await checkWalletUtxos(wallet1, address1);
         await checkWalletUtxos(wallet2, address2);
         const tx = await rpc.call('createrawtransaction', [
-          utxos.map(utxo => ({ txid: utxo.mintTxid, vout: utxo.mintIndex })),
-          { [address1]: 0.1, [address2]: 0.1 }
+          utxos.map((utxo) => ({ txid: utxo.mintTxid, vout: utxo.mintIndex })),
+          { [address1]: 0.1, [address2]: 0.1 },
         ]);
         const fundedTx = await rpc.call('fundrawtransaction', [tx]);
         const signedTx = await rpc.signrawtx(fundedTx.hex);
@@ -294,11 +288,11 @@ describe('Wallet Benchmark', function() {
         .find({
           chain,
           network,
-          address: { $in: smallAddressBatch }
+          address: { $in: smallAddressBatch },
         })
         .toArray();
 
-      const smallAddresses = foundSmallAddressBatch.map(wa => wa.address);
+      const smallAddresses = foundSmallAddressBatch.map((wa) => wa.address);
 
       for (let address of smallAddressBatch) {
         expect(smallAddresses.includes(address)).to.be.true;
@@ -309,11 +303,11 @@ describe('Wallet Benchmark', function() {
         .find({
           chain,
           network,
-          address: { $in: mediumAddressBatch }
+          address: { $in: mediumAddressBatch },
         })
         .toArray();
 
-      const mediumAddresses = foundMediumAddressBatch.map(wa => wa.address);
+      const mediumAddresses = foundMediumAddressBatch.map((wa) => wa.address);
 
       for (let address of mediumAddressBatch) {
         expect(mediumAddresses.includes(address)).to.be.true;
@@ -324,11 +318,11 @@ describe('Wallet Benchmark', function() {
         .find({
           chain,
           network,
-          address: { $in: largeAddressBatch }
+          address: { $in: largeAddressBatch },
         })
         .toArray();
 
-      const largeAddresses = foundLargeAddressBatch.map(wa => wa.address);
+      const largeAddresses = foundLargeAddressBatch.map((wa) => wa.address);
 
       for (let address of largeAddressBatch) {
         expect(largeAddresses.includes(address)).to.be.true;

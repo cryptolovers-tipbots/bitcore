@@ -6,33 +6,33 @@ const query = require('querystring');
 const url = require('url');
 const Errors = require('./errors');
 const dfltTrustedKeys = require('../util/JsonPaymentProtocolKeys.js');
-const Bitcore = require('crypto-wallet-core').BitcoreLib;
+const Astracore = require('crypto-wallet-core').AstracoreLib;
 const _ = require('lodash');
-const sha256 = Bitcore.crypto.Hash.sha256;
-const BN = Bitcore.crypto.BN;
-var Bitcore_ = {
-  btc: Bitcore,
-  bch: require('crypto-wallet-core').BitcoreLibCash
+const sha256 = Astracore.crypto.Hash.sha256;
+const BN = Astracore.crypto.BN;
+var Astracore_ = {
+  btc: Astracore,
+  bch: require('crypto-wallet-core').AstracoreLibCash,
 };
 var MAX_FEE_PER_KB = {
   btc: 10000 * 1000, // 10k sat/b
   bch: 10000 * 1000, // 10k sat/b
   eth: 1000000000000, // 1000 Gwei
-  xrp: 1000000000000
+  xrp: 1000000000000,
 };
 
 // PayPro Network Map
 export enum NetworkMap {
   main = 'livenet',
   test = 'testnet',
-  regtest = 'testnet'
+  regtest = 'testnet',
 }
 
 export class PayProV2 {
   static options: { headers?: any; args?: string; agent?: boolean } = {
     headers: {},
     args: '',
-    agent: false
+    agent: false,
   };
   static request = superagent;
   static trustedKeys = dfltTrustedKeys;
@@ -92,7 +92,7 @@ export class PayProV2 {
         }
         return resolve({
           rawBody: res.text,
-          headers: res.headers
+          headers: res.headers,
         });
       });
     });
@@ -156,8 +156,8 @@ export class PayProV2 {
         Accept: 'application/payment-options',
         'x-paypro-version': 2,
         Connection: 'Keep-Alive',
-        'Keep-Alive': 'timeout=30, max=10'
-      }
+        'Keep-Alive': 'timeout=30, max=10',
+      },
     });
 
     return await this.verifyResponse(paymentUrl, rawBody, headers, unsafeBypassValidation);
@@ -179,12 +179,12 @@ export class PayProV2 {
         'Content-Type': 'application/payment-request',
         'x-paypro-version': 2,
         Connection: 'Keep-Alive',
-        'Keep-Alive': 'timeout=30, max=10'
+        'Keep-Alive': 'timeout=30, max=10',
       },
       args: JSON.stringify({
         chain,
-        currency
-      })
+        currency,
+      }),
     });
 
     return await PayProV2.verifyResponse(paymentUrl, rawBody, headers, unsafeBypassValidation);
@@ -205,7 +205,7 @@ export class PayProV2 {
     chain,
     currency,
     unsignedTransactions,
-    unsafeBypassValidation = false
+    unsafeBypassValidation = false,
   }) {
     let { rawBody, headers } = await PayProV2._asyncRequest({
       url: paymentUrl,
@@ -214,13 +214,13 @@ export class PayProV2 {
         'Content-Type': 'application/payment-verification',
         'x-paypro-version': 2,
         Connection: 'Keep-Alive',
-        'Keep-Alive': 'timeout=30, max=10'
+        'Keep-Alive': 'timeout=30, max=10',
       },
       args: JSON.stringify({
         chain,
         currency,
-        transactions: unsignedTransactions
-      })
+        transactions: unsignedTransactions,
+      }),
     });
 
     return await this.verifyResponse(paymentUrl, rawBody, headers, unsafeBypassValidation);
@@ -242,7 +242,7 @@ export class PayProV2 {
     currency,
     signedTransactions,
     unsafeBypassValidation = false,
-    bpPartner
+    bpPartner,
   }) {
     let { rawBody, headers } = await this._asyncRequest({
       url: paymentUrl,
@@ -253,13 +253,13 @@ export class PayProV2 {
         BP_PARTNER: bpPartner.bp_partner,
         BP_PARTNER_VERSION: bpPartner.bp_partner_version,
         Connection: 'Keep-Alive',
-        'Keep-Alive': 'timeout=30, max=10'
+        'Keep-Alive': 'timeout=30, max=10',
       },
       args: JSON.stringify({
         chain,
         currency,
-        transactions: signedTransactions
-      })
+        transactions: signedTransactions,
+      }),
     });
 
     return await this.verifyResponse(paymentUrl, rawBody, headers, unsafeBypassValidation);
@@ -357,9 +357,9 @@ export class PayProV2 {
     let s_r = BN.fromBuffer(sigbuf.slice(0, 32));
     let s_s = BN.fromBuffer(sigbuf.slice(32));
 
-    let pub = Bitcore.PublicKey.fromString(keyData.publicKey);
-    let sig = new Bitcore.crypto.Signature(s_r, s_s);
-    let valid = Bitcore.crypto.ECDSA.verify(hashbuf, sig, pub);
+    let pub = Astracore.PublicKey.fromString(keyData.publicKey);
+    let sig = new Astracore.crypto.Signature(s_r, s_s);
+    let valid = Astracore.crypto.ECDSA.verify(hashbuf, sig, pub);
 
     if (!valid) {
       throw new Error('Response signature invalid');
@@ -378,7 +378,7 @@ export class PayProV2 {
   static processResponse(responseData) {
     let payProDetails: any = {
       payProUrl: responseData.paymentUrl,
-      memo: responseData.memo
+      memo: responseData.memo,
     };
 
     // otherwise, it returns err.
@@ -387,7 +387,7 @@ export class PayProV2 {
     // getPaymentOptions
     if (responseData.paymentOptions) {
       payProDetails.paymentOptions = responseData.paymentOptions;
-      payProDetails.paymentOptions.forEach(option => {
+      payProDetails.paymentOptions.forEach((option) => {
         option.network = NetworkMap[option.network];
       });
     }
@@ -411,7 +411,7 @@ export class PayProV2 {
 
     if (responseData.instructions) {
       payProDetails.instructions = responseData.instructions;
-      payProDetails.instructions.forEach(output => {
+      payProDetails.instructions.forEach((output) => {
         output.toAddress = output.to || output.outputs[0].address;
         output.amount = output.value !== undefined ? output.value : output.outputs[0].amount;
       });

@@ -1,11 +1,11 @@
 [Unit]
-Description=Bitcore Node
+Description=Astracore Node
 After=network.target
 
 [Service]
-User=bitcore
-Group=bitcore
-ExecStart=/usr/bin/node /home/bitcore/bitcore/packages/bitcore-node/server.js
+User=astracore
+Group=astracore
+ExecStart=/usr/bin/node /home/astracore/astracore/packages/astracore-node/server.js
 
 [Install]
 WantedBy=multi-user.target

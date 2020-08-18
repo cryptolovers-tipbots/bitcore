@@ -1,4 +1,4 @@
-var bitcore = require('bitcore-lib-cash');
-bitcore.P2P = require('./lib');
+var astracore = require('astracore-lib-cash');
+astracore.P2P = require('./lib');
 
-module.exports = bitcore.P2P;
+module.exports = astracore.P2P;

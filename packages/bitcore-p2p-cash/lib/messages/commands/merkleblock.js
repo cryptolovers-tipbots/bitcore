@@ -2,10 +2,10 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
-var BufferUtil = bitcore.util.buffer;
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
+var astracore = require('astracore-lib-cash');
+var BufferUtil = astracore.util.buffer;
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
 
 /**
  * Contains information about a MerkleBlock
@@ -28,12 +28,12 @@ function MerkleblockMessage(arg, options) {
 }
 inherits(MerkleblockMessage, Message);
 
-MerkleblockMessage.prototype.setPayload = function(payload) {
+MerkleblockMessage.prototype.setPayload = function (payload) {
   $.checkArgument(BufferUtil.isBuffer(payload));
   this.merkleBlock = this.MerkleBlock.fromBuffer(payload);
 };
 
-MerkleblockMessage.prototype.getPayload = function() {
+MerkleblockMessage.prototype.getPayload = function () {
   return this.merkleBlock ? this.merkleBlock.toBuffer() : BufferUtil.EMPTY_BUFFER;
 };
 

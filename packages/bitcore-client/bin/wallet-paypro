@@ -6,9 +6,9 @@ const request = require('request-promise-native');
 const promptly = require('promptly');
 const cwc = require('crypto-wallet-core');
 const libs = {
-  BTC: cwc.BitcoreLib,
-  BCH: cwc.BitcoreLibCash
-}
+  BTC: cwc.AstracoreLib,
+  BCH: cwc.AstracoreLibCash,
+};
 
 program
   .version(require('../package.json').version)
@@ -33,13 +33,13 @@ const main = async () => {
     method: 'GET',
     uri: payProUri,
     headers: {
-      'Accept' : 'application/payment-options',
-      'x-paypro-version' : '2'
+      Accept: 'application/payment-options',
+      'x-paypro-version': '2',
     },
     agentOptions: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     },
-    json: true
+    json: true,
   });
   let scaleMap = {};
   const { expires, memo, paymentOptions } = paymentOptionsResponse;
@@ -57,11 +57,11 @@ const main = async () => {
   //  Payment-Request
   let wallet;
   wallet = await Wallet.loadWallet({ name, path });
-  const from = inputFrom || await wallet.deriveAddress(0);
+  const from = inputFrom || (await wallet.deriveAddress(0));
   let nonce;
   const { chain } = wallet;
   if (!['BTC', 'BCH'].includes(chain)) {
-    nonce = inputNonce || await wallet.getNonce();
+    nonce = inputNonce || (await wallet.getNonce());
   }
   const currency = token || chain;
   console.log(`selecting ${currency}`);
@@ -70,11 +70,11 @@ const main = async () => {
     uri: payProUri,
     json: { chain, currency },
     headers: {
-      'Content-Type' : 'application/payment-request',
-      'x-paypro-version' : '2'
+      'Content-Type': 'application/payment-request',
+      'x-paypro-version': '2',
     },
     agentOptions: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     },
   });
 
@@ -86,10 +86,12 @@ const main = async () => {
   let password;
   for (const instruction of instructions) {
     const { type, requiredFeeRate, outputs, gasPrice, to, value, data } = instruction;
-    const recipients = [{
-      address: to || outputs[0].address,
-      amount: value >= 0 ? value : outputs[0].amount
-    }];
+    const recipients = [
+      {
+        address: to || outputs[0].address,
+        amount: value >= 0 ? value : outputs[0].amount,
+      },
+    ];
     const feeRate = requiredFeeRate || gasPrice;
     let invoiceID;
     if (outputs) {
@@ -99,7 +101,7 @@ const main = async () => {
     const params = { recipients, feeRate, from, invoiceID, data, value, utxos };
     params.nonce = Number(nonce);
     const unsignedTx = await wallet.newTx(params);
-    unsignedTransactions
+    unsignedTransactions;
     console.log(`unsignedRawTx: ${unsignedTx}`);
 
     //  Sign tx
@@ -108,7 +110,7 @@ const main = async () => {
     }
     wallet = await wallet.unlock(password);
     const signedTx = await wallet.signTx({ tx: unsignedTx, passphrase: password });
-    const txid = cwc.Transactions.getHash({chain, tx: signedTx});
+    const txid = cwc.Transactions.getHash({ chain, tx: signedTx });
     console.log(`signedRawTx: ${signedTx}`);
     signedTransactions.push({ tx: signedTx });
     console.log(`txid: ${txid}`);
@@ -118,40 +120,39 @@ const main = async () => {
       const transaction = new libs[chain].Transaction(signedTx);
       weightedSize = transaction._estimateSize();
     }
-    unsignedTransactions.push({ tx: unsignedTx, weightedSize })
+    unsignedTransactions.push({ tx: unsignedTx, weightedSize });
     nonce++;
   }
 
-    // Payment Verification
-    const paymentVerificationResponse = await request({
-      method: 'POST',
-      uri: payProUri,
-      json: { chain, currency, transactions: unsignedTransactions},
-      headers: {
-        'Content-Type' : 'application/payment-verification',
-        'x-paypro-version' : '2'
-      },
-      agentOptions: {
-        rejectUnauthorized: false
-      },
-    });
-    console.log(paymentVerificationResponse);
+  // Payment Verification
+  const paymentVerificationResponse = await request({
+    method: 'POST',
+    uri: payProUri,
+    json: { chain, currency, transactions: unsignedTransactions },
+    headers: {
+      'Content-Type': 'application/payment-verification',
+      'x-paypro-version': '2',
+    },
+    agentOptions: {
+      rejectUnauthorized: false,
+    },
+  });
+  console.log(paymentVerificationResponse);
 
   //  send-payment
   const sendPaymentResponse = await request({
     method: 'POST',
     uri: payProUri,
-    json: { chain, currency, transactions: signedTransactions},
+    json: { chain, currency, transactions: signedTransactions },
     headers: {
-      'Content-Type' : 'application/payment',
-      'x-paypro-version' : '2'
+      'Content-Type': 'application/payment',
+      'x-paypro-version': '2',
     },
     agentOptions: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     },
   });
   console.log(sendPaymentResponse);
 };
 
-main()
-  .catch(err => console.error(err));
+main().catch((err) => console.error(err));

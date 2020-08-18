@@ -8,23 +8,23 @@ function findConfig(): ConfigType | undefined {
   let foundConfig;
   const envConfigPath = process.env.BITCORE_CONFIG_PATH;
   const argConfigPath = program.config;
-  const configFileName = 'bitcore.config.json';
-  let bitcoreConfigPaths = [
+  const configFileName = 'astracore.config.json';
+  let astracoreConfigPaths = [
     `${homedir()}/${configFileName}`,
     `../../../../${configFileName}`,
-    `../../${configFileName}`
+    `../../${configFileName}`,
   ];
   const overrideConfig = argConfigPath || envConfigPath;
   if (overrideConfig) {
-    bitcoreConfigPaths.unshift(overrideConfig);
+    astracoreConfigPaths.unshift(overrideConfig);
   }
-  // No config specified. Search home, bitcore and cur directory
-  for (let path of bitcoreConfigPaths) {
+  // No config specified. Search home, astracore and cur directory
+  for (let path of astracoreConfigPaths) {
     if (!foundConfig) {
       try {
         const expanded = path[0] === '~' ? path.replace('~', homedir()) : path;
-        const bitcoreConfig = require(expanded) as { bitcoreNode: ConfigType };
-        foundConfig = bitcoreConfig.bitcoreNode;
+        const astracoreConfig = require(expanded) as { astracoreNode: ConfigType };
+        foundConfig = astracoreConfig.astracoreNode;
       } catch (e) {
         foundConfig = undefined;
       }
@@ -42,7 +42,7 @@ function setTrustedPeers(config: ConfigType): ConfigType {
         let peers = config.chains[chain][network].trustedPeers || [];
         peers.push({
           host: env[envString],
-          port: env[`${envString}_PORT`]
+          port: env[`${envString}_PORT`],
         });
         config.chains[chain][network].trustedPeers = peers;
       }
@@ -50,13 +50,13 @@ function setTrustedPeers(config: ConfigType): ConfigType {
   }
   return config;
 }
-const Config = function(): ConfigType {
+const Config = function (): ConfigType {
   let config: ConfigType = {
     maxPoolSize: 50,
     port: 3000,
     dbUrl: process.env.DB_URL || '',
     dbHost: process.env.DB_HOST || '127.0.0.1',
-    dbName: process.env.DB_NAME || 'bitcore',
+    dbName: process.env.DB_NAME || 'astracore',
     dbPort: process.env.DB_PORT || '27017',
     dbUser: process.env.DB_USER || '',
     dbPass: process.env.DB_PASS || '',
@@ -67,22 +67,22 @@ const Config = function(): ConfigType {
       api: {
         rateLimiter: {
           disabled: false,
-          whitelist: ['::ffff:127.0.0.1', '::1']
+          whitelist: ['::ffff:127.0.0.1', '::1'],
         },
         wallets: {
           allowCreationBeforeCompleteSync: false,
-          allowUnauthenticatedCalls: false
-        }
+          allowUnauthenticatedCalls: false,
+        },
       },
       event: {
-        onlyWalletEvents: false
+        onlyWalletEvents: false,
       },
       p2p: {},
       socket: {
-        bwsKeys: []
+        bwsKeys: [],
       },
-      storage: {}
-    }
+      storage: {},
+    },
   };
 
   let foundConfig = findConfig();
@@ -98,10 +98,10 @@ const Config = function(): ConfigType {
             host: '127.0.0.1',
             port: 8332,
             username: 'bitcoin',
-            password: 'bitcoin'
-          }
-        }
-      }
+            password: 'bitcoin',
+          },
+        },
+      },
     });
   }
   config = setTrustedPeers(config);

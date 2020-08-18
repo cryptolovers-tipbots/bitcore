@@ -8,9 +8,9 @@ import { WalletAddressStorage } from '../../../src/models/walletAddress';
 import { BitcoinTransaction, TransactionInput } from '../../../src/types/namespaces/Bitcoin';
 import { TransactionFixture } from '../../fixtures/transaction.fixture';
 import { mockStorage } from '../../helpers';
-const bitcoreLib = require('bitcore-lib');
+const astracoreLib = require('astracore-lib');
 
-describe('Transaction Model', function() {
+describe('Transaction Model', function () {
   let sandbox = sinon.sandbox.create();
   let address = 'mjVf6sFjt9q6aLY7M21Ap6CPSWdaoNHSf1';
   this.timeout(500000);
@@ -22,11 +22,11 @@ describe('Transaction Model', function() {
   });
 
   it('should stream all the mint operations', async () => {
-    const tx = bitcoreLib.Transaction(TransactionFixture.transaction) as BitcoinTransaction;
+    const tx = astracoreLib.Transaction(TransactionFixture.transaction) as BitcoinTransaction;
     let batches = 0;
 
     const mintStream = new Readable({ objectMode: true, read: () => {} });
-    const done = new Promise(r =>
+    const done = new Promise((r) =>
       mintStream
         .on('data', (mintOps: MintOp[]) => {
           batches++;
@@ -43,18 +43,18 @@ describe('Transaction Model', function() {
       txs: [tx],
       height: 8534,
       mintStream,
-      initialSyncComplete: true
+      initialSyncComplete: true,
     });
     await done;
     expect(batches).to.eq(1);
   });
 
   it('should batch large amount of transactions', async () => {
-    const tx = bitcoreLib.Transaction(TransactionFixture.transaction) as BitcoinTransaction;
+    const tx = astracoreLib.Transaction(TransactionFixture.transaction) as BitcoinTransaction;
     let batches = 0;
 
     const mintStream = new Readable({ objectMode: true, read: () => {} });
-    const done = new Promise(r =>
+    const done = new Promise((r) =>
       mintStream
         .on('data', (mintOps: MintOp[]) => {
           batches++;
@@ -70,19 +70,19 @@ describe('Transaction Model', function() {
       txs: new Array(100000).fill(tx),
       height: 8534,
       mintStream,
-      initialSyncComplete: true
+      initialSyncComplete: true,
     });
     await done;
     expect(batches).to.eq(2);
   });
 
   it('should stream all the spend operations', async () => {
-    const tx = bitcoreLib.Transaction(TransactionFixture.transaction) as BitcoinTransaction;
+    const tx = astracoreLib.Transaction(TransactionFixture.transaction) as BitcoinTransaction;
     let batches = 0;
     const CURRENT_HEIGHT = 8534;
 
     const spentStream = new Readable({ objectMode: true, read: () => {} });
-    const done = new Promise(r =>
+    const done = new Promise((r) =>
       spentStream
         .on('data', (spentOps: SpendOp[]) => {
           batches++;
@@ -99,14 +99,14 @@ describe('Transaction Model', function() {
       network: 'regtest',
       txs: [tx],
       height: CURRENT_HEIGHT,
-      spentStream
+      spentStream,
     });
     await done;
     expect(batches).to.eq(1);
   });
 
   describe('Wallet Tagging', async () => {
-    const tx = bitcoreLib.Transaction(TransactionFixture.transaction) as TaggedBitcoinTx;
+    const tx = astracoreLib.Transaction(TransactionFixture.transaction) as TaggedBitcoinTx;
     const CURRENT_HEIGHT = 8534;
     const correctWalletId = new ObjectId('5d93abeba811051da3af9a35');
 
@@ -116,12 +116,12 @@ describe('Transaction Model', function() {
         project: sandbox.stub().returnsThis(),
         toArray: sandbox.stub().resolves([
           { wallet: correctWalletId, address },
-          { wallet: new ObjectId('6d93abeba811051da3af9a35'), address: 'fakeaddress' }
-        ])
+          { wallet: new ObjectId('6d93abeba811051da3af9a35'), address: 'fakeaddress' },
+        ]),
       }));
 
       const mintStream = new Readable({ objectMode: true, read: () => {} });
-      let done = new Promise(r =>
+      let done = new Promise((r) =>
         mintStream
           .on('data', (mintOps: MintOp[]) => {
             let ops = mintOps;
@@ -137,7 +137,7 @@ describe('Transaction Model', function() {
         txs: [tx],
         height: 8534,
         mintStream,
-        initialSyncComplete: true
+        initialSyncComplete: true,
       });
       await done;
       expect(tx.wallets).to.exist;
@@ -150,7 +150,7 @@ describe('Transaction Model', function() {
         const input = i.toObject();
         const inputTxid = i.toObject().prevTxId;
         const fixtureInput = TransactionFixture.inputs[inputTxid];
-        const inputTx = new bitcoreLib.Transaction(fixtureInput) as BitcoinTransaction;
+        const inputTx = new astracoreLib.Transaction(fixtureInput) as BitcoinTransaction;
         const coin = { spentTxid: tx.hash, value: inputTx.outputs[input.outputIndex].satoshis, wallets: [] };
         return coin;
       }
@@ -158,11 +158,11 @@ describe('Transaction Model', function() {
       sandbox.stub(CoinStorage, 'collection').get(() => ({
         find: sandbox.stub().returnsThis(),
         project: sandbox.stub().returnsThis(),
-        toArray: sandbox.stub().resolves(tx.inputs.map(getCoinForInput))
+        toArray: sandbox.stub().resolves(tx.inputs.map(getCoinForInput)),
       }));
 
       const txStream = new Readable({ objectMode: true, read: () => {} });
-      let done = new Promise(r =>
+      let done = new Promise((r) =>
         txStream
           .on('data', (spentOps: TxOp[]) => {
             let ops = spentOps;
@@ -182,7 +182,7 @@ describe('Transaction Model', function() {
         txs: [tx],
         height: CURRENT_HEIGHT,
         initialSyncComplete: false,
-        txStream
+        txStream,
       });
       await done;
     });

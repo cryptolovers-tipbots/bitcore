@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MODULES=' crypto-wallet-core bitcore-wallet-service bitcore-wallet-client bitcore-client'
+MODULES=' crypto-wallet-core astracore-wallet-service astracore-wallet-client astracore-client'
 
 for i in $MODULES; 
 do

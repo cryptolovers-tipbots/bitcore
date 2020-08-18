@@ -20,18 +20,18 @@ export class Level {
     const { path, createIfMissing, errorIfExists } = params;
     let basePath;
     if (!path) {
-      basePath = `${os.homedir()}/.bitcore`;
+      basePath = `${os.homedir()}/.astracore`;
       try {
         if (!usingBrowser) {
           fs.mkdirSync(basePath);
         }
       } catch (e) {
         if (e.errno !== -17) {
-          console.error('Unable to create bitcore storage directory');
+          console.error('Unable to create astracore storage directory');
         }
       }
     }
-    this.path = path || `${basePath}/bitcoreWallet`;
+    this.path = path || `${basePath}/astracoreWallet`;
     if (!createIfMissing && !usingBrowser) {
       const walletExists =
         fs.existsSync(this.path) && fs.existsSync(this.path + '/LOCK') && fs.existsSync(this.path + '/LOG');
@@ -45,7 +45,7 @@ export class Level {
       console.log('using wallets at', this.path);
       this.db = StorageCache[this.path] = levelup(lvldwn(this.path), {
         createIfMissing,
-        errorIfExists
+        errorIfExists,
       });
     }
   }
@@ -71,7 +71,7 @@ export class Level {
             this.push(JSON.stringify(jsonData));
           }
           next();
-        }
+        },
       })
     );
   }
@@ -85,11 +85,11 @@ export class Level {
             this.push({
               data: data.value.toString(),
               key: data.key.toString(),
-              storageType: 'Level'
+              storageType: 'Level',
             });
           }
           next();
-        }
+        },
       })
     );
   }

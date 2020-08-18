@@ -10,39 +10,43 @@ To get started, just `npm install litecore` or `bower install litecore`.
 
 ## Addresses and Key Management
 
-* [Addresses](address.md)
-* [Using Different Networks](networks.md)
-* [Private Keys](privatekey.md) and [Public Keys](publickey.md)
-* [Hierarchically-derived Private and Public Keys](hierarchical.md)
+- [Addresses](address.md)
+- [Using Different Networks](networks.md)
+- [Private Keys](privatekey.md) and [Public Keys](publickey.md)
+- [Hierarchically-derived Private and Public Keys](hierarchical.md)
 
 ## Payment Handling
-* [Using Different Units](unit.md)
-* [Acknowledging and Requesting Payments: Litecoin URIs](uri.md)
-* [The Transaction Class](transaction.md)
+
+- [Using Different Units](unit.md)
+- [Acknowledging and Requesting Payments: Litecoin URIs](uri.md)
+- [The Transaction Class](transaction.md)
 
 ## Litecoin Internals
-* [Scripts](script.md)
-* [Block](block.md)
+
+- [Scripts](script.md)
+- [Block](block.md)
 
 ## Extra
-* [Crypto](crypto.md)
-* [Encoding](encoding.md)
+
+- [Crypto](crypto.md)
+- [Encoding](encoding.md)
 
 ## Module Development
-* [Browser Builds](browser.md)
+
+- [Browser Builds](browser.md)
 
 ## Modules
 
 Some functionality is implemented as a module that can be installed separately:
 
-* [Payment Protocol Support](https://github.com/bitpay/bitcore-payment-protocol)
-* [Peer to Peer Networking](https://github.com/litecoin-project/litecore-p2p)
-* [Bitcoin Core JSON-RPC](https://github.com/bitpay/bitcoind-rpc)
-* [Payment Channels](https://github.com/bitpay/bitcore-channel)
-* [Mnemonics](https://github.com/bitpay/bitcore-mnemonic)
-* [Elliptical Curve Integrated Encryption Scheme](https://github.com/bitpay/bitcore-ecies)
-* [Blockchain Explorers](https://github.com/bitpay/bitcore-explorers)
-* [Signed Messages](https://github.com/litecoin-project/litecore-message)
+- [Payment Protocol Support](https://github.com/bitpay/astracore-payment-protocol)
+- [Peer to Peer Networking](https://github.com/litecoin-project/litecore-p2p)
+- [Bitcoin Core JSON-RPC](https://github.com/bitpay/bitcoind-rpc)
+- [Payment Channels](https://github.com/bitpay/astracore-channel)
+- [Mnemonics](https://github.com/bitpay/astracore-mnemonic)
+- [Elliptical Curve Integrated Encryption Scheme](https://github.com/bitpay/astracore-ecies)
+- [Blockchain Explorers](https://github.com/bitpay/astracore-explorers)
+- [Signed Messages](https://github.com/litecoin-project/litecore-message)
 
 # Examples
 
@@ -76,7 +80,7 @@ var p2shAddress = new litecore.Address([publicKey1, publicKey2, publicKey3], 2);
 ```javascript
 var paymentInfo = {
   address: '1DNtTk4PUCGAdiNETAzQFWZiy2fCHtGnPx',
-  amount: 120000 //satoshis
+  amount: 120000, //satoshis
 };
 var uri = new litecore.URI(paymentInfo).toString();
 ```
@@ -85,10 +89,10 @@ var uri = new litecore.URI(paymentInfo).toString();
 
 ```javascript
 var transaction = new Transaction()
-    .from(utxos)          // Feed information about what unspent outputs one can use
-    .to(address, amount)  // Add an output with the given amount of satoshis
-    .change(address)      // Sets up a change address where the rest of the funds will go
-    .sign(privkeySet)     // Signs all the inputs it can
+  .from(utxos) // Feed information about what unspent outputs one can use
+  .to(address, amount) // Add an output with the given amount of satoshis
+  .change(address) // Sets up a change address where the rest of the funds will go
+  .sign(privkeySet); // Signs all the inputs it can
 ```
 
 ## Connect to the Network
@@ -96,7 +100,7 @@ var transaction = new Transaction()
 ```javascript
 var peer = new Peer('5.9.85.34');
 
-peer.on('inv', function(message) {
+peer.on('inv', function (message) {
   // new inventory
 });
 

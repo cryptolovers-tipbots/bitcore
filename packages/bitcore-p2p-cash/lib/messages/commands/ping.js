@@ -2,12 +2,12 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
+var astracore = require('astracore-lib-cash');
 var utils = require('../utils');
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
-var BufferUtil = bitcore.util.buffer;
-var BufferReader = bitcore.encoding.BufferReader;
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
+var BufferUtil = astracore.util.buffer;
+var BufferReader = astracore.encoding.BufferReader;
 
 /**
  * A message to confirm that a connection is still valid.
@@ -27,14 +27,14 @@ function PingMessage(arg, options) {
 }
 inherits(PingMessage, Message);
 
-PingMessage.prototype.setPayload = function(payload) {
+PingMessage.prototype.setPayload = function (payload) {
   var parser = new BufferReader(payload);
   this.nonce = parser.read(8);
 
   utils.checkFinished(parser);
 };
 
-PingMessage.prototype.getPayload = function() {
+PingMessage.prototype.getPayload = function () {
   return this.nonce;
 };
 

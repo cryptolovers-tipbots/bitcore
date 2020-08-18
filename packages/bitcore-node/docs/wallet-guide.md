@@ -21,7 +21,8 @@ touch .bashrc
 ```
 
 Edit the .profile file to insert:
-> *Make sure to replace username*
+
+> _Make sure to replace username_
 
 ```sh
 alias bitcoinmainnet='/Applications/Bitcoin-Qt.app/Contents/MacOS/Bitcoin-Qt -datadir=/Users/username/blockchains/bitcoin-core/networks/mainnet/'
@@ -39,7 +40,7 @@ Ensure Mongod is running
 mongod
 ```
 
-Start the Bitcore node in the /bitcore/ project root directory
+Start the Astracore node in the /astracore/ project root directory
 
 ```sh
 npm run node
@@ -52,7 +53,7 @@ To run RegTest Bitcoin Core RegTest Client
 bitcoinregtest
 ```
 
-> If successful Bitcore logo should be blue and syncing blocks on mongod in the background
+> If successful Astracore logo should be blue and syncing blocks on mongod in the background
 
 ## How to Generate Blocks
 

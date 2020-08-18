@@ -22,50 +22,50 @@ module.exports = {
   storageOpts: {
     mongoDb: {
       uri: 'mongodb://localhost:27017/bws',
-      dbname: 'bws'
-    }
+      dbname: 'bws',
+    },
   },
   messageBrokerOpts: {
     //  To use message broker server, uncomment this:
     messageBrokerServer: {
-      url: 'http://localhost:3380'
-    }
+      url: 'http://localhost:3380',
+    },
   },
   blockchainExplorerOpts: {
     btc: {
       livenet: {
-        url: 'https://api.bitcore.io'
+        url: 'https://api.astracore.io',
       },
       testnet: {
-        url: 'https://api.bitcore.io',
-        regtestEnabled: false
-      }
+        url: 'https://api.astracore.io',
+        regtestEnabled: false,
+      },
     },
     bch: {
       livenet: {
-        url: 'https://api.bitcore.io'
+        url: 'https://api.astracore.io',
       },
       testnet: {
-        url: 'https://api.bitcore.io'
-      }
+        url: 'https://api.astracore.io',
+      },
     },
     eth: {
       livenet: {
-        url: 'https://api-eth.bitcore.io'
+        url: 'https://api-eth.astracore.io',
       },
       testnet: {
-        url: 'https://api-eth.bitcore.io'
-      }
+        url: 'https://api-eth.astracore.io',
+      },
     },
     xrp: {
       livenet: {
-        url: 'https://api-xrp.bitcore.io'
+        url: 'https://api-xrp.astracore.io',
       },
       testnet: {
-        url: 'https://api-xrp.bitcore.io'
-      }
+        url: 'https://api-xrp.astracore.io',
+      },
     },
-    socketApiKey: 'socketApiKey'
+    socketApiKey: 'socketApiKey',
   },
   pushNotificationsOpts: {
     templatePath: 'templates',
@@ -73,16 +73,16 @@ module.exports = {
     defaultUnit: 'btc',
     subjectPrefix: '',
     pushServerUrl: 'https://fcm.googleapis.com/fcm',
-    authorizationKey: 'You_have_to_put_something_here'
+    authorizationKey: 'You_have_to_put_something_here',
   },
   fiatRateServiceOpts: {
-    defaultProvider: 'BitPay',
-    fetchInterval: 60 // in minutes
+    defaultProvider: 'Astracore',
+    fetchInterval: 60, // in minutes
   },
   maintenanceOpts: {
-    maintenanceMode: false
+    maintenanceMode: false,
   },
-  staticRoot: '/tmp/static'
+  staticRoot: '/tmp/static',
   // simplex: {
   //   sandbox: {
   //     apiKey: 'simplex_sandbox_api_key_here',
@@ -117,18 +117,18 @@ module.exports = {
   //  port: 25,
   //  ignoreTLS: true,
   //  subjectPrefix: '[Wallet Service]',
-  //  from: 'wallet-service@bitcore.io',
+  //  from: 'wallet-service@astracore.io',
   //  templatePath: 'templates',
   //  defaultLanguage: 'en',
   //  defaultUnit: 'btc',
   //  publicTxUrlTemplate: {
   //    btc: {
-  //      livenet: 'https://insight.bitcore.io/#/BTC/mainnet/tx/{{txid}}',
-  //      testnet: 'https://insight.bitcore.io/#/BTC/testnet/tx/{{txid}}',
+  //      livenet: 'https://insight.astracore.io/#/BTC/mainnet/tx/{{txid}}',
+  //      testnet: 'https://insight.astracore.io/#/BTC/testnet/tx/{{txid}}',
   //    },
   //    bch: {
-  //      livenet: 'https://insight.bitcore.io/#/BCH/mainnet/tx/{{txid}}',
-  //      testnet: 'https://insight.bitcore.io/#/BCH/testnet/tx/{{txid}}',
+  //      livenet: 'https://insight.astracore.io/#/BCH/mainnet/tx/{{txid}}',
+  //      testnet: 'https://insight.astracore.io/#/BCH/testnet/tx/{{txid}}',
   //    }
   //  },
   // },

@@ -4,10 +4,10 @@ var Buffers = require('./buffers');
 var EventEmitter = require('events').EventEmitter;
 var Net = require('net');
 var Socks5Client = require('socks5-client');
-var bitcore = require('bitcore-lib-cash');
-var Networks = bitcore.Networks;
+var astracore = require('astracore-lib-cash');
+var Networks = astracore.Networks;
 var Messages = require('./messages');
-var $ = bitcore.util.preconditions;
+var $ = astracore.util.preconditions;
 var util = require('util');
 
 /**
@@ -63,11 +63,13 @@ function Peer(options) {
     this.port = this.network.port;
   }
 
-  this.messages = options.messages || new Messages({
-    network: this.network,
-    Block: bitcore.Block,
-    Transaction: bitcore.Transaction
-  });
+  this.messages =
+    options.messages ||
+    new Messages({
+      network: this.network,
+      Block: astracore.Block,
+      Transaction: astracore.Transaction,
+    });
 
   this.dataBuffer = new Buffers();
 
@@ -80,12 +82,12 @@ function Peer(options) {
 
   // set message handlers
   var self = this;
-  this.on('verack', function() {
+  this.on('verack', function () {
     self.status = Peer.STATUS.READY;
     self.emit('ready');
   });
 
-  this.on('version', function(message) {
+  this.on('version', function (message) {
     self.version = message.version;
     self.subversion = message.subversion;
     self.bestHeight = message.startHeight;
@@ -93,17 +95,16 @@ function Peer(options) {
     var verackResponse = self.messages.VerAck();
     self.sendMessage(verackResponse);
 
-    if(!self.versionSent) {
+    if (!self.versionSent) {
       self._sendVersion();
     }
   });
 
-  this.on('ping', function(message) {
+  this.on('ping', function (message) {
     self._sendPong(message.nonce);
   });
 
   return this;
-
 }
 util.inherits(Peer, EventEmitter);
 
@@ -112,7 +113,7 @@ Peer.STATUS = {
   DISCONNECTED: 'disconnected',
   CONNECTING: 'connecting',
   CONNECTED: 'connected',
-  READY: 'ready'
+  READY: 'ready',
 };
 
 /**
@@ -121,12 +122,12 @@ Peer.STATUS = {
  * @param {Number} port - Port number of the proxy
  * @returns {Peer} The same Peer instance.
  */
-Peer.prototype.setProxy = function(host, port) {
+Peer.prototype.setProxy = function (host, port) {
   $.checkState(this.status === Peer.STATUS.DISCONNECTED);
 
   this.proxy = {
     host: host,
-    port: port
+    port: port,
   };
   return this;
 };
@@ -135,12 +136,12 @@ Peer.prototype.setProxy = function(host, port) {
  * Init the connection with the remote peer.
  * @returns {Peer} The same peer instance.
  */
-Peer.prototype.connect = function() {
+Peer.prototype.connect = function () {
   this.socket = this._getSocket();
   this.status = Peer.STATUS.CONNECTING;
 
   var self = this;
-  this.socket.on('connect', function(ev) {
+  this.socket.on('connect', function (ev) {
     self.status = Peer.STATUS.CONNECTED;
     self.emit('connect');
     self._sendVersion();
@@ -151,13 +152,13 @@ Peer.prototype.connect = function() {
   return this;
 };
 
-Peer.prototype._addSocketEventHandlers = function() {
+Peer.prototype._addSocketEventHandlers = function () {
   var self = this;
 
   this.socket.on('error', self._onError.bind(this));
   this.socket.on('end', self.disconnect.bind(this));
 
-  this.socket.on('data', function(data) {
+  this.socket.on('data', function (data) {
     self.dataBuffer.push(data);
     if (self.dataBuffer.length > Peer.MAX_RECEIVE_BUFFER) {
       // TODO: handle this case better
@@ -171,7 +172,7 @@ Peer.prototype._addSocketEventHandlers = function() {
   });
 };
 
-Peer.prototype._onError = function(e) {
+Peer.prototype._onError = function (e) {
   this.emit('error', e);
   if (this.status !== Peer.STATUS.DISCONNECTED) {
     this.disconnect();
@@ -182,7 +183,7 @@ Peer.prototype._onError = function(e) {
  * Disconnects the remote connection.
  * @returns {Peer} The same peer instance.
  */
-Peer.prototype.disconnect = function() {
+Peer.prototype.disconnect = function () {
   this.status = Peer.STATUS.DISCONNECTED;
   this.socket.destroy();
   this.emit('disconnect');
@@ -193,16 +194,16 @@ Peer.prototype.disconnect = function() {
  * Send a Message to the remote peer.
  * @param {Message} message - A message instance
  */
-Peer.prototype.sendMessage = function(message) {
+Peer.prototype.sendMessage = function (message) {
   this.socket.write(message.toBuffer());
 };
 
 /**
  * Internal function that sends VERSION message to the remote peer.
  */
-Peer.prototype._sendVersion = function() {
+Peer.prototype._sendVersion = function () {
   // todo: include sending local ip address
-  var message = this.messages.Version({relay: this.relay});
+  var message = this.messages.Version({ relay: this.relay });
   this.versionSent = true;
   this.sendMessage(message);
 };
@@ -210,7 +211,7 @@ Peer.prototype._sendVersion = function() {
 /**
  * Send a PONG message to the remote peer.
  */
-Peer.prototype._sendPong = function(nonce) {
+Peer.prototype._sendPong = function (nonce) {
   var message = this.messages.Pong(nonce);
   this.sendMessage(message);
 };
@@ -218,7 +219,7 @@ Peer.prototype._sendPong = function(nonce) {
 /**
  * Internal function that tries to read a message from the data buffer
  */
-Peer.prototype._readMessage = function() {
+Peer.prototype._readMessage = function () {
   var message = this.messages.parseBuffer(this.dataBuffer);
   if (message) {
     this.emit(message.command, message);
@@ -230,7 +231,7 @@ Peer.prototype._readMessage = function() {
  * Internal function that creates a socket using a proxy if necessary.
  * @returns {Socket} A Socket instance not yet connected.
  */
-Peer.prototype._getSocket = function() {
+Peer.prototype._getSocket = function () {
   if (this.proxy) {
     return new Socks5Client(this.proxy.host, this.proxy.port);
   }

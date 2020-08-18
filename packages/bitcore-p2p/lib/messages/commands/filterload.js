@@ -2,11 +2,11 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
-var BufferUtil = bitcore.util.buffer;
+var astracore = require('astracore-lib');
+var BufferUtil = astracore.util.buffer;
 var BloomFilter = require('../../bloomfilter');
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
 
 /**
  * Request peer to send inv messages based on a bloom filter
@@ -26,12 +26,12 @@ function FilterloadMessage(arg, options) {
 }
 inherits(FilterloadMessage, Message);
 
-FilterloadMessage.prototype.setPayload = function(payload) {
+FilterloadMessage.prototype.setPayload = function (payload) {
   this.filter = BloomFilter.fromBuffer(payload);
 };
 
-FilterloadMessage.prototype.getPayload = function() {
-  if(this.filter) {
+FilterloadMessage.prototype.getPayload = function () {
+  if (this.filter) {
     return this.filter.toBuffer();
   } else {
     return BufferUtil.EMPTY_BUFFER;

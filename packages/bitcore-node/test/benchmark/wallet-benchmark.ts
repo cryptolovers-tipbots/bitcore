@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import { CoinStorage } from '../../src/models/coin';
-import { Wallet } from 'bitcore-client';
+import { Wallet } from 'astracore-client';
 import { Storage } from '../../src/services/storage';
 
 async function getAllAddressesFromBlocks(start, end) {
@@ -9,7 +9,7 @@ async function getAllAddressesFromBlocks(start, end) {
     .find({ chain: 'BTC', network: 'mainnet', mintHeight: { $gte: start, $lte: end } })
     .project({ address: 1 })
     .toArray();
-  const uniqueAddresses = _.uniq(coins.map(c => c.address));
+  const uniqueAddresses = _.uniq(coins.map((c) => c.address));
   return uniqueAddresses;
 }
 
@@ -29,7 +29,7 @@ export async function createWallet(addresses: string[], iteration, networkName?:
       chain,
       network,
       baseUrl,
-      password
+      password,
     });
   }
   await lockedWallet.register({ baseUrl });
@@ -37,7 +37,7 @@ export async function createWallet(addresses: string[], iteration, networkName?:
   if (addresses.length > 0) {
     const unlockedWallet = await lockedWallet.unlock(password);
 
-    const keysToImport = addresses.map(a => ({ address: a }));
+    const keysToImport = addresses.map((a) => ({ address: a }));
     await unlockedWallet.importKeys({ keys: keysToImport });
   }
 
@@ -47,10 +47,10 @@ export async function createWallet(addresses: string[], iteration, networkName?:
 async function benchMarkUtxoList(unlockedWallet: Wallet, addresses, includeSpent = false) {
   const utxoListStart = new Date();
   const utxoStream = unlockedWallet.getUtxos({ includeSpent });
-  const utxoBenchmark = new Promise(resolve => {
+  const utxoBenchmark = new Promise((resolve) => {
     const utxos = new Array<string>();
     utxoStream
-      .on('data', data => {
+      .on('data', (data) => {
         const stringData = data.toString().replace(',\n', '');
         if (stringData.includes('{') && stringData.includes('}')) {
           utxos.push(JSON.parse(stringData));
@@ -93,9 +93,9 @@ async function bench(iteration = 0, startBlock = 0, endBlock = 100) {
 
   const walletTxListStart = new Date();
   const txStream = unlockedWallet.listTransactions({ startBlock, endBlock });
-  let benchmarkComplete = new Promise(resolve => {
+  let benchmarkComplete = new Promise((resolve) => {
     const txs = new Array<any>();
-    txStream.on('data', data => {
+    txStream.on('data', (data) => {
       const stringData = data.toString().replace(',\n', '');
       if (stringData.includes('{') && stringData.includes('}')) {
         txs.push(JSON.parse(stringData));
@@ -117,7 +117,7 @@ async function bench(iteration = 0, startBlock = 0, endBlock = 100) {
   await benchmarkComplete;
 }
 
-if(require.main === module ){
+if (require.main === module) {
   async function main() {
     for (let i = 1; i < 6; i++) {
       await bench(i, 0, Math.pow(10, i));

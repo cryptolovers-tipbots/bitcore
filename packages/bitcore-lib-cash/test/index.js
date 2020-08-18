@@ -1,16 +1,16 @@
-"use strict";
+'use strict';
 
 var should = require('chai').should();
-var bitcore = require('../');
+var astracore = require('../');
 
-describe('#versionGuard', function() {
-  it('global._bitcore should be defined', function() {
-    should.equal(global._bitcoreCash, bitcore.version);
+describe('#versionGuard', function () {
+  it('global._astracore should be defined', function () {
+    should.equal(global._astracoreCash, astracore.version);
   });
 
-  it('throw an error if version is already defined', function() {
-    (function() {
-      bitcore.versionGuard('version');
-    }).should.throw('More than one instance of bitcore');
+  it('throw an error if version is already defined', function () {
+    (function () {
+      astracore.versionGuard('version');
+    }.should.throw('More than one instance of astracore'));
   });
 });

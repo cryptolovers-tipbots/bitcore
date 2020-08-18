@@ -1,10 +1,10 @@
 module.exports = {
   BTC: {
-    lib: require('bitcore-lib'),
-    p2p: require('bitcore-p2p')
+    lib: require('astracore-lib'),
+    p2p: require('astracore-p2p'),
   },
   BCH: {
-    lib: require('bitcore-lib-cash'),
-    p2p: require('bitcore-p2p-cash')
-  }
+    lib: require('astracore-lib-cash'),
+    p2p: require('astracore-p2p-cash'),
+  },
 };

@@ -1,14 +1,14 @@
-import { BitcoreLib, BitcoreLibCash } from 'crypto-wallet-core';
+import { AstracoreLib, AstracoreLibCash } from 'crypto-wallet-core';
 
 var $ = require('preconditions').singleton();
 const URL = require('url');
 const _ = require('lodash');
 const superagent = require('superagent');
-var Bitcore = BitcoreLib;
+var Astracore = AstracoreLib;
 const Errors = require('./errors');
-var Bitcore_ = {
-  btc: Bitcore,
-  bch: BitcoreLibCash
+var Astracore_ = {
+  btc: Astracore,
+  bch: AstracoreLibCash,
 };
 // const request = require('request');
 const JSON_PAYMENT_REQUEST_CONTENT_TYPE = 'application/payment-request';
@@ -95,15 +95,15 @@ export class PayPro {
     sigbuf.copy(s_r, 0, 0);
     sigbuf.copy(s_s, 0, 32);
 
-    let s_rBN = Bitcore.crypto.BN.fromBuffer(s_r);
-    let s_sBN = Bitcore.crypto.BN.fromBuffer(s_s);
+    let s_rBN = Astracore.crypto.BN.fromBuffer(s_r);
+    let s_sBN = Astracore.crypto.BN.fromBuffer(s_s);
 
-    let pub = Bitcore.PublicKey.fromString(keyData.publicKey);
+    let pub = Astracore.PublicKey.fromString(keyData.publicKey);
 
-    let sig = new Bitcore.crypto.Signature();
+    let sig = new Astracore.crypto.Signature();
     sig.set({ r: s_rBN, s: s_sBN });
 
-    let valid = Bitcore.crypto.ECDSA.verify(hashbuf, sig, pub);
+    let valid = Astracore.crypto.ECDSA.verify(hashbuf, sig, pub);
 
     if (!valid) {
       return callback(new Error('Response signature invalid'));
@@ -115,7 +115,7 @@ export class PayPro {
   static runRequest(opts, cb) {
     $.checkArgument(opts.network, 'should pass network');
     var r = this.r[opts.method.toLowerCase()](opts.url);
-    _.each(opts.headers, function(v, k) {
+    _.each(opts.headers, function (v, k) {
       if (v) r.set(k, v);
     });
     if (opts.args) {
@@ -158,13 +158,13 @@ export class PayPro {
 
       // Step 1: Check digest from header
       let digest = res.headers.digest.toString().split('=')[1];
-      let hash = Bitcore.crypto.Hash.sha256(Buffer.from(body, 'utf8')).toString('hex');
+      let hash = Astracore.crypto.Hash.sha256(Buffer.from(body, 'utf8')).toString('hex');
 
       if (digest !== hash) {
         return cb(new Error(`Response body hash does not match digest header. Actual: ${hash} Expected: ${digest}`));
       }
       // Step 2: verify digest's signature
-      PayPro._verify(opts.url, res.headers, opts.network, opts.trustedKeys, err => {
+      PayPro._verify(opts.url, res.headers, opts.network, opts.trustedKeys, (err) => {
         if (err) return cb(err);
 
         let ret;
@@ -184,17 +184,17 @@ export class PayPro {
     opts.trustedKeys = opts.trustedKeys || dfltTrustedKeys;
 
     var coin = opts.coin || 'btc';
-    var bitcore = Bitcore_[coin];
+    var astracore = Astracore_[coin];
 
     var COIN = coin.toUpperCase();
     opts.headers = opts.headers || {
       Accept: JSON_PAYMENT_REQUEST_CONTENT_TYPE,
-      'Content-Type': 'application/octet-stream'
+      'Content-Type': 'application/octet-stream',
     };
     opts.method = 'GET';
     opts.network = opts.network || 'livenet';
 
-    PayPro.runRequest(opts, function(err, data) {
+    PayPro.runRequest(opts, function (err, data) {
       if (err) return cb(err);
 
       var ret: any = {};
@@ -230,7 +230,7 @@ export class PayPro {
       ret.amount = data.outputs[0].amount;
 
       try {
-        ret.toAddress = new bitcore.Address(data.outputs[0].address).toString(true);
+        ret.toAddress = new astracore.Address(data.outputs[0].address).toString(true);
       } catch (e) {
         return cb(new Error('Bad output address ' + e));
       }
@@ -247,9 +247,7 @@ export class PayPro {
   }
 
   static send(opts, cb) {
-    $.checkArgument(opts.rawTxUnsigned)
-      .checkArgument(opts.url)
-      .checkArgument(opts.rawTx);
+    $.checkArgument(opts.rawTxUnsigned).checkArgument(opts.url).checkArgument(opts.rawTx);
 
     var coin = opts.coin || 'btc';
     var COIN = coin.toUpperCase();
@@ -257,20 +255,20 @@ export class PayPro {
     opts.network = opts.network || 'livenet';
     opts.method = 'POST';
     opts.headers = opts.headers || {
-      'Content-Type': JSON_PAYMENT_VERIFY_CONTENT_TYPE
+      'Content-Type': JSON_PAYMENT_VERIFY_CONTENT_TYPE,
     };
     let size = opts.rawTx.length / 2;
     opts.args = JSON.stringify({
       currency: COIN,
       unsignedTransaction: opts.rawTxUnsigned,
-      weightedSize: size
+      weightedSize: size,
     });
 
     // Do not verify verify-payment message's response
     opts.noVerify = true;
 
     // verify request
-    PayPro.runRequest(opts, function(err, rawData) {
+    PayPro.runRequest(opts, function (err, rawData) {
       if (err) {
         console.log('Error at verify-payment:', err.message ? err.message : '', opts);
         return cb(err);
@@ -278,7 +276,7 @@ export class PayPro {
 
       opts.headers = {
         'Content-Type': JSON_PAYMENT_CONTENT_TYPE,
-        Accept: JSON_PAYMENT_ACK_CONTENT_TYPE
+        Accept: JSON_PAYMENT_ACK_CONTENT_TYPE,
       };
 
       if (opts.bp_partner) {
@@ -290,13 +288,13 @@ export class PayPro {
 
       opts.args = JSON.stringify({
         currency: COIN,
-        transactions: [opts.rawTx]
+        transactions: [opts.rawTx],
       });
 
       // Do not verify payment message's response
       opts.noVerify = true;
 
-      PayPro.runRequest(opts, function(err, rawData) {
+      PayPro.runRequest(opts, function (err, rawData) {
         if (err) {
           console.log('Error at payment:', err.message ? err.message : '', opts);
           return cb(err);

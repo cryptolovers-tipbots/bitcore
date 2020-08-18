@@ -2,8 +2,8 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
-var BufferUtil = bitcore.util.buffer;
+var astracore = require('astracore-lib-cash');
+var BufferUtil = astracore.util.buffer;
 
 /**
  * The mempool message sends a request to a node asking for information about
@@ -19,9 +19,9 @@ function MempoolMessage(arg, options) {
 }
 inherits(MempoolMessage, Message);
 
-MempoolMessage.prototype.setPayload = function() {};
+MempoolMessage.prototype.setPayload = function () {};
 
-MempoolMessage.prototype.getPayload = function() {
+MempoolMessage.prototype.getPayload = function () {
   return BufferUtil.EMPTY_BUFFER;
 };
 

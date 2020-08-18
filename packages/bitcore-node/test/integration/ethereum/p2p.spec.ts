@@ -1,4 +1,4 @@
-import * as BitcoreClient from 'bitcore-client';
+import * as AstracoreClient from 'astracore-client';
 import { expect } from 'chai';
 import config from '../../../src/config';
 import { CacheStorage } from '../../../src/models/cache';
@@ -8,7 +8,7 @@ import { Api } from '../../../src/services/api';
 import { wait } from '../../../src/utils/wait';
 import { resetDatabase } from '../../helpers';
 
-const { StreamUtil } = BitcoreClient;
+const { StreamUtil } = AstracoreClient;
 const chain = 'ETH';
 const network = 'testnet';
 const chainConfig = config.chains[chain][network];
@@ -19,21 +19,21 @@ const phrase = 'kiss talent nerve fossil equip fault exile execute train wrist m
 const account = '0x00a329c0648769a73afac7f9381e08fb43dbea72';
 
 async function getWallet() {
-  let wallet: BitcoreClient.Wallet;
+  let wallet: AstracoreClient.Wallet;
   try {
-    wallet = await BitcoreClient.Wallet.loadWallet({ name });
+    wallet = await AstracoreClient.Wallet.loadWallet({ name });
     await wallet.register();
     await wallet.syncAddresses();
     return wallet;
   } catch (e) {
     console.log('Creating a new ethereum wallet');
-    wallet = await BitcoreClient.Wallet.create({
+    wallet = await AstracoreClient.Wallet.create({
       name,
       chain,
       network,
       baseUrl,
       password,
-      phrase
+      phrase,
     });
     await wallet.unlock(password);
     await wallet.nextAddressPair();
@@ -42,7 +42,7 @@ async function getWallet() {
   }
 }
 
-describe('Ethereum', function() {
+describe('Ethereum', function () {
   this.timeout(50000);
 
   before(async () => {
@@ -69,7 +69,7 @@ describe('Ethereum', function() {
     const worker = new EthP2pWorker({ chain, network, chainConfig });
     await worker.connect();
     await worker.setupListeners();
-    const sawBlock = new Promise(resolve => worker.events.on('block', resolve));
+    const sawBlock = new Promise((resolve) => worker.events.on('block', resolve));
 
     const { web3 } = await worker.getWeb3();
     await web3.eth.sendTransaction({ to: addresses[0], value: web3.utils.toWei('.01', 'ether'), from: account });
@@ -96,7 +96,7 @@ describe('Ethereum', function() {
     const worker = new EthP2pWorker({ chain, network, chainConfig });
     await worker.connect();
     await worker.setupListeners();
-    const sawBlock = new Promise(resolve => worker.events.on('block', resolve));
+    const sawBlock = new Promise((resolve) => worker.events.on('block', resolve));
 
     const { web3 } = await worker.getWeb3();
     await web3.eth.sendTransaction({ to: addresses[0], value: web3.utils.toWei('.01', 'ether'), from: account });
@@ -109,7 +109,7 @@ describe('Ethereum', function() {
 
   it('should have receipts on tx history', async () => {
     const wallet = await getWallet();
-    await new Promise(r =>
+    await new Promise((r) =>
       wallet
         .listTransactions({})
         .pipe(StreamUtil.jsonlBufferToObjectMode())
@@ -133,7 +133,7 @@ describe('Ethereum', function() {
 
     const worker = new EthP2pWorker({ chain, network, chainConfig });
     const done = worker.syncDone();
-    const sawBlock = new Promise(resolve => worker.events.on('block', resolve));
+    const sawBlock = new Promise((resolve) => worker.events.on('block', resolve));
     await worker.start();
     await wait(1000);
 

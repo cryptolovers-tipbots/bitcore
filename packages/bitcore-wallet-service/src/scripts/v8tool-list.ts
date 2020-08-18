@@ -2,7 +2,7 @@
 
 var _ = require('lodash');
 const request = require('request');
-const Bitcore = require('bitcore-lib');
+const Astracore = require('astracore-lib');
 const requestStream = require('request');
 import { Client } from '../lib//blockchainexplorers/v8/client';
 
@@ -23,24 +23,24 @@ if (!authKey) throw new Error('provide authKey');
 
 // ====================
 //
-const authKeyObj = Bitcore.PrivateKey(authKey);
+const authKeyObj = Astracore.PrivateKey(authKey);
 
 let tmp = authKeyObj.toObject();
 tmp.compressed = false;
-const pubKey = Bitcore.PrivateKey(tmp).toPublicKey();
+const pubKey = Astracore.PrivateKey(tmp).toPublicKey();
 
 const BASE = {
-  BTC: `https://api.bitcore.io/api/${coin}/${network}`,
-  BCH: `https://api.bitcore.io/api/${coin}/${network}`,
-  ETH: `https://api-eth.bitcore.io/api/${coin}/${network}`,
-  XRP: `https://api-xrp.bitcore.io/api/${coin}/${network}`
+  BTC: `https://api.astracore.io/api/${coin}/${network}`,
+  BCH: `https://api.astracore.io/api/${coin}/${network}`,
+  ETH: `https://api-eth.astracore.io/api/${coin}/${network}`,
+  XRP: `https://api-xrp.astracore.io/api/${coin}/${network}`,
 };
 
 let baseUrl = BASE[coin];
 
 let client = new Client({
   baseUrl,
-  authKey: authKeyObj
+  authKey: authKeyObj,
 });
 
 // utxos
@@ -59,10 +59,10 @@ var acum = '';
 
 let r = requestStream.get(url, {
   headers: { 'x-signature': signature },
-  json: true
+  json: true,
 });
 
-r.on('data', raw => {
+r.on('data', (raw) => {
   acum = acum + raw.toString();
 });
 
@@ -70,7 +70,7 @@ r.on('end', () => {
   let txs = [],
     unconf = [],
     err;
-  _.each(acum.split(/\r?\n/), rawTx => {
+  _.each(acum.split(/\r?\n/), (rawTx) => {
     if (!rawTx) return;
 
     let tx;

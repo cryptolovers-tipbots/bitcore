@@ -5,14 +5,14 @@ import Mocha from 'mocha';
 
 import config from '../../src/config';
 import { Storage } from '../../src/services/storage';
-import { Modules } from "../../src/modules";
+import { Modules } from '../../src/modules';
 
 const TIMEOUT = 5000;
 const TEST_DIR = path.join(__dirname, '../integration');
 
 const storageArgs = {
   dbHost: config.dbHost,
-  dbName: 'bitcore-integration'
+  dbName: 'astracore-integration',
 };
 
 function handleError(err) {
@@ -26,18 +26,18 @@ function startTestDatabase() {
 }
 
 function runTests() {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     const testRunner = new Mocha();
     testRunner.timeout(TIMEOUT);
     testRunner.reporter('spec');
     Modules.loadConfigured();
 
     const files = glob.sync(`${TEST_DIR}/**/**.js`);
-    files.forEach(function(file) {
+    files.forEach(function (file) {
       testRunner.addFile(file);
     });
     try {
-      testRunner.run(function(failures) {
+      testRunner.run(function (failures) {
         process.exit(failures);
         resolve();
       });
@@ -48,12 +48,12 @@ function runTests() {
 }
 
 startTestDatabase()
-  .then(function() {
+  .then(function () {
     return runTests();
   })
-  .then(function() {
+  .then(function () {
     process.exit(0);
   })
-  .catch(function(err) {
+  .catch(function (err) {
     handleError(err);
   });

@@ -1,8 +1,8 @@
 {
-  "name": "bitcore-lib-ltc",
+  "name": "astracore-lib-ltc",
   "version": "8.22.0",
   "description": "A pure and powerful JavaScript Litecoin library.",
-  "author": "BitPay <dev@bitpay.com>",
+  "author": "Astracore <dev@bitpay.com>",
   "main": "index.js",
   "scripts": {
     "test": "gulp --tasks && gulp test",
@@ -95,7 +95,7 @@
     "scryptsy": "2.1.0"
   },
   "devDependencies": {
-    "bitcore-build": "^8.22.0",
+    "astracore-build": "^8.22.0",
     "brfs": "^2.0.1",
     "chai": "^4.2.0",
     "gulp": "^4.0.0",

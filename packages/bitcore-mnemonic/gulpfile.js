@@ -1,4 +1,2 @@
-
-var startGulp = require('bitcore-build');
-Object.assign(exports, startGulp('mnemonic'))
-
+var startGulp = require('astracore-build');
+Object.assign(exports, startGulp('mnemonic'));

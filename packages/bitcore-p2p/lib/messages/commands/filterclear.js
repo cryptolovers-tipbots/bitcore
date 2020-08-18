@@ -2,8 +2,8 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
-var BufferUtil = bitcore.util.buffer;
+var astracore = require('astracore-lib');
+var BufferUtil = astracore.util.buffer;
 
 /**
  * Request peer to clear data for a bloom filter
@@ -16,9 +16,9 @@ function FilterclearMessage(arg, options) {
 }
 inherits(FilterclearMessage, Message);
 
-FilterclearMessage.prototype.setPayload = function() {};
+FilterclearMessage.prototype.setPayload = function () {};
 
-FilterclearMessage.prototype.getPayload = function() {
+FilterclearMessage.prototype.getPayload = function () {
   return BufferUtil.EMPTY_BUFFER;
 };
 

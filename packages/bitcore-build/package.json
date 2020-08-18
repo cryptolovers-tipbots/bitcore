@@ -1,7 +1,7 @@
 {
-  "name": "bitcore-build",
+  "name": "astracore-build",
   "version": "8.22.0",
-  "description": "A helper for common tasks to build bitcore modules'",
+  "description": "A helper for common tasks to build astracore modules'",
   "main": "index.js",
   "scripts": {
     "test": "gulp test",
@@ -9,10 +9,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/bitpay/bitcore-build"
+    "url": "git://github.com/bitpay/astracore-build"
   },
   "keywords": [
-    "bitcore"
+    "astracore"
   ],
   "contributors": [
     {
@@ -38,9 +38,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/bitpay/bitcore-build/issues"
+    "url": "https://github.com/bitpay/astracore-build/issues"
   },
-  "homepage": "https://github.com/bitpay/bitcore-build",
+  "homepage": "https://github.com/bitpay/astracore-build",
   "dependencies": {
     "@kollavarsham/gulp-coveralls": "^0.2.2",
     "brfs": "^2.0.1",

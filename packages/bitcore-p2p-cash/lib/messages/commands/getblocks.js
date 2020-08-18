@@ -2,11 +2,11 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
+var astracore = require('astracore-lib-cash');
 var utils = require('../utils');
-var BufferReader = bitcore.encoding.BufferReader;
-var BufferWriter = bitcore.encoding.BufferWriter;
-var $ = bitcore.util.preconditions;
+var BufferReader = astracore.encoding.BufferReader;
+var BufferWriter = astracore.encoding.BufferWriter;
+var $ = astracore.util.preconditions;
 
 /**
  * Query another peer about blocks. It can query for multiple block hashes,
@@ -32,7 +32,7 @@ function GetblocksMessage(arg, options) {
 }
 inherits(GetblocksMessage, Message);
 
-GetblocksMessage.prototype.setPayload = function(payload) {
+GetblocksMessage.prototype.setPayload = function (payload) {
   var parser = new BufferReader(payload);
   $.checkArgument(!parser.finished(), 'No data received in payload');
 
@@ -47,7 +47,7 @@ GetblocksMessage.prototype.setPayload = function(payload) {
   utils.checkFinished(parser);
 };
 
-GetblocksMessage.prototype.getPayload = function() {
+GetblocksMessage.prototype.getPayload = function () {
   var bw = new BufferWriter();
   bw.writeUInt32LE(this.version);
   bw.writeVarintNum(this.starts.length);

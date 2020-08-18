@@ -1,2 +1,2 @@
-var startGulp = require('bitcore-build');
-Object.assign(exports, startGulp('lib'))
+var startGulp = require('astracore-build');
+Object.assign(exports, startGulp('lib'));

@@ -1,22 +1,21 @@
-Contributing to Litecore
-=======
+# Contributing to Litecore
 
-We're working hard to make *litecore* the most powerful JavaScript library for working with litecoin. Our goal is to have *litecore* be a library that can be used by anyone interested in litecoin, and to level expertise differences with great design and documentation.
+We're working hard to make _litecore_ the most powerful JavaScript library for working with litecoin. Our goal is to have _litecore_ be a library that can be used by anyone interested in litecoin, and to level expertise differences with great design and documentation.
 
 ## Community
 
 If there are any questions, etc., please feel to ask in one of the community channels:
 
-- https://labs.bitpay.com/c/bitcore (Support Forum)
-- https://gitter.im/bitpay/bitcore (Development Chat)
+- https://labs.bitpay.com/c/astracore (Support Forum)
+- https://gitter.im/bitpay/astracore (Development Chat)
 
 ## Quick Checklist
 
 Ideally, please make sure to run:
 
-* `gulp test` passes all the tests (We run tests against Node.js v0.10, v0.12, io.js, and modern browsers)
-* `gulp coverage` covers 100% of the branches of your code (See `coverage/lcov-report/index.html` for details)
-* `gulp lint` doesn't complain about your changes
+- `gulp test` passes all the tests (We run tests against Node.js v0.10, v0.12, io.js, and modern browsers)
+- `gulp coverage` covers 100% of the branches of your code (See `coverage/lcov-report/index.html` for details)
+- `gulp lint` doesn't complain about your changes
 
 ## Design Guidelines
 
@@ -26,7 +25,7 @@ These are some global design goals in litecore that any change must adhere.
 
 We take our time with picking names. Code is going to be written once, and read hundreds of times.
 
-We were inspired to name this rule first due to Uncle Bob's great work *Clean Code*, which has a whole chapter on this subject.
+We were inspired to name this rule first due to Uncle Bob's great work _Clean Code_, which has a whole chapter on this subject.
 
 In particular, you may notice that some names in this library are quite long for the average JavaScript user. That's because we prefer a long but comprehensible name than an abbreviation that might confuse new users.
 
@@ -36,7 +35,7 @@ Write a test for all your code. We encourage Test Driven Development so we know 
 
 ### D3 - Robustness Principle
 
-*Be conservative in what you send, be liberal in what you accept.*
+_Be conservative in what you send, be liberal in what you accept._
 
 Interfaces should accept as many types of arguments as possible, so there's no mental tax on using them: we want to avoid questions such as "should I use a string here or a buffer?", "what happens if I'm not sure if the type of this variable is an Address instance or a string with it encoded in base-58?" or "what kind of object will I receive after calling this function?".
 
@@ -81,10 +80,13 @@ Write a `.inspect()` method so an instance can be easily debugged in the console
 Name them in UpperCamelCase, as they are namespaces.
 
 DO:
+
 ```javascript
 var BufferUtil = require('./util/buffer');
 ```
+
 DON'T:
+
 ```javascript
 var bufferUtil = require('./util/buffer');
 ```
@@ -92,14 +94,16 @@ var bufferUtil = require('./util/buffer');
 #### G7 - Standard Methods
 
 When possible, litecore objects should have standard methods on an instance prototype:
-* `toObject/toJSON` - A plain JavaScript object that `JSON.stringify` can call
-* `toString` - A string representation of the instance
-* `toBuffer` - A hex Buffer
+
+- `toObject/toJSON` - A plain JavaScript object that `JSON.stringify` can call
+- `toString` - A string representation of the instance
+- `toBuffer` - A hex Buffer
 
 These should have a matching static method that can be used for instantiation:
-* `fromObject` - Should be able to instantiate with the output from `toObject/toJSON`
-* `fromString` - Should be able to instantiate with output from `toString`
-* `fromBuffer` - Should likewise be able to instantiate from output from `toBuffer`
+
+- `fromObject` - Should be able to instantiate with the output from `toObject/toJSON`
+- `fromString` - Should be able to instantiate with output from `toString`
+- `fromBuffer` - Should likewise be able to instantiate from output from `toBuffer`
 
 `JSON.stringify` and `JSON.parse` are expected to be handled outside of the scope of Litecore methods. For example, calling `JSON.stringify` on a Litecore object will behave as expected and call `transaction.toJSON()` and then stringify it:
 
@@ -121,10 +125,11 @@ var tx = new Transaction(data);
 We've designed a structure for Errors to follow and are slowly migrating to it.
 
 Usage:
-* Errors are generated in the file `lib/errors/index.js` by invoking `gulp errors`.
-* The specification for errors is written in the `lib/errors/spec.js` file.
-* Whenever a new class is created, add a generic error for that class in `lib/errors/spec.js`.
-* Specific errors for that class should subclass that error. Take a look at the structure in `lib/errors/spec.js`, it should be clear how subclasses are generated from that file.
+
+- Errors are generated in the file `lib/errors/index.js` by invoking `gulp errors`.
+- The specification for errors is written in the `lib/errors/spec.js` file.
+- Whenever a new class is created, add a generic error for that class in `lib/errors/spec.js`.
+- Specific errors for that class should subclass that error. Take a look at the structure in `lib/errors/spec.js`, it should be clear how subclasses are generated from that file.
 
 #### E2 - Provide a `getValidationError` Static Method for Classes
 
@@ -149,23 +154,21 @@ Most classes have static methods named `fromBuffer`, `fromString`, `fromJSON`. W
 
 #### I3 - Method Chaining
 
-For classes that have a mutable state, most of the methods that can be chained *SHOULD* be chained, allowing for interfaces that read well, like:
+For classes that have a mutable state, most of the methods that can be chained _SHOULD_ be chained, allowing for interfaces that read well, like:
 
 ```javascript
-var transaction = new Transaction()
-    .from(utxo)
-    .to(address, amount)
-    .change(address)
-    .sign(privkey);
+var transaction = new Transaction().from(utxo).to(address, amount).change(address).sign(privkey);
 ```
 
 #### I4 - Copy Constructors
 
 Constructors, when provided an instance of the same class, should:
-* Return the same object, if the instances of this class are immutable
-* Return a deep copy of the object, if the instances are mutable
+
+- Return the same object, if the instances of this class are immutable
+- Return a deep copy of the object, if the instances are mutable
 
 Examples:
+
 ```javascript
 function MyMutableClass(arg) {
   if (arg instanceof MyMutableClass) {
@@ -211,11 +214,14 @@ Inputs for tests should not be generated randomly. Also, the type and structure 
 This helps to make tests more useful as examples, and more independent of where they are placed. This also helps prevent forgetting to include all submodules in the litecore object.
 
 DO:
+
 ```javascript
 var litecore = require('../');
 var PublicKey = litecore.PublicKey;
 ```
+
 DON'T:
+
 ```javascript
 var PublicKey = require('../lib/publickey');
 ```
@@ -237,6 +243,7 @@ Please proofread documentation to avoid unintentional spelling and grammatical m
 ## Pull Request Workflow
 
 Our workflow is based on GitHub's pull requests. We use feature branches, prepended with: `test`, `feature`, `fix`, `refactor`, or `remove` according to the change the branch introduces. Some examples for such branches are:
+
 ```sh
 git checkout -b test/some-module
 git checkout -b feature/some-new-stuff
@@ -245,6 +252,7 @@ git checkout -b remove/some-file
 ```
 
 We expect pull requests to be rebased to the master branch before merging:
+
 ```sh
 git remote add litecoin-project git@github.com:litecoin-project/litecore.git
 git pull --rebase litecoin-project master
@@ -253,14 +261,16 @@ git pull --rebase litecoin-project master
 Note that we require rebasing your branch instead of merging it, for commit readability reasons.
 
 After that, you can push the changes to your fork, by doing:
+
 ```sh
 git push origin your_branch_name
 git push origin feature/some-new-stuff
 git push origin fix/some-bug
 ```
+
 Finally go to [github.com/litecoin-project/litecore](https://github.com/litecoin-project/litecore) in your web browser and issue a new pull request.
 
-Main contributors will review your code and possibly ask for changes before your code is pulled in to the main repository.  We'll check that all tests pass, review the coding style, and check for general code correctness. If everything is OK, we'll merge your pull request and your code will be part of litecore.
+Main contributors will review your code and possibly ask for changes before your code is pulled in to the main repository. We'll check that all tests pass, review the coding style, and check for general code correctness. If everything is OK, we'll merge your pull request and your code will be part of litecore.
 
 If you have any questions feel free to post them to
 [github.com/litecoin-project/litecore/issues](https://github.com/litecoin-project/litecore/issues).

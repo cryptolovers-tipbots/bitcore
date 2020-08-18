@@ -40,7 +40,7 @@ docs
 *debug.log
 node_modules/
 .env
-*bitcore.config.*
+*astracore.config.*
 .vscode
 .DS_Store
 *.swp

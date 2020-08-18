@@ -15,7 +15,7 @@ export interface IService {
 export class BaseModule implements IService {
   internalServices = new Array<IService>();
   constructor(
-    protected bitcoreServices: {
+    protected astracoreServices: {
       P2P: typeof P2P;
       Storage: typeof Storage;
       Event: typeof Event;
@@ -45,7 +45,7 @@ class ModuleManager extends BaseModule {
   loadConfigured() {
     for (const modulePath of Config.get().modules) {
       const moduleClass = require(modulePath).default || (require(modulePath) as Class<BaseModule>);
-      this.internalServices.push(new moduleClass(this.bitcoreServices));
+      this.internalServices.push(new moduleClass(this.astracoreServices));
     }
   }
 }

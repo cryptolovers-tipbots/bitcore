@@ -1,17 +1,17 @@
 import _ from 'lodash';
-const Bitcore_ = {
-  btc: require('bitcore-lib'),
-  bch: require('bitcore-lib-cash')
+const Astracore_ = {
+  btc: require('astracore-lib'),
+  bch: require('astracore-lib-cash'),
 };
 
 export class BCHAddressTranslator {
   static getAddressCoin(address) {
     try {
-      new Bitcore_['btc'].Address(address);
+      new Astracore_['btc'].Address(address);
       return 'legacy';
     } catch (e) {
       try {
-        const a = new Bitcore_['bch'].Address(address);
+        const a = new Astracore_['bch'].Address(address);
         if (a.toLegacyAddress() == address) return 'copay';
         return 'cashaddr';
       } catch (e) {
@@ -34,22 +34,22 @@ export class BCHAddressTranslator {
       ret = addresses;
     } else {
       ret = _.filter(
-        _.map(addresses, x => {
-          const bitcore = Bitcore_[from == 'legacy' ? 'btc' : 'bch'];
+        _.map(addresses, (x) => {
+          const astracore = Astracore_[from == 'legacy' ? 'btc' : 'bch'];
           let orig;
 
           try {
-            orig = new bitcore.Address(x).toObject();
+            orig = new astracore.Address(x).toObject();
           } catch (e) {
             return null;
           }
 
           if (to == 'cashaddr') {
-            return Bitcore_['bch'].Address.fromObject(orig).toCashAddress(true);
+            return Astracore_['bch'].Address.fromObject(orig).toCashAddress(true);
           } else if (to == 'copay') {
-            return Bitcore_['bch'].Address.fromObject(orig).toLegacyAddress();
+            return Astracore_['bch'].Address.fromObject(orig).toLegacyAddress();
           } else if (to == 'legacy') {
-            return Bitcore_['btc'].Address.fromObject(orig).toString();
+            return Astracore_['btc'].Address.fromObject(orig).toString();
           }
         })
       );

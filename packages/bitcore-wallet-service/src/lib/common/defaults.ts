@@ -25,77 +25,77 @@ module.exports = {
         name: 'urgent',
         nbBlocks: 2,
         multiplier: 1.5,
-        defaultValue: 75000
+        defaultValue: 75000,
       },
       {
         name: 'priority',
         nbBlocks: 2,
-        defaultValue: 50000
+        defaultValue: 50000,
       },
       {
         name: 'normal',
         nbBlocks: 3,
-        defaultValue: 30000
+        defaultValue: 30000,
       },
       {
         name: 'economy',
         nbBlocks: 6,
-        defaultValue: 25000
+        defaultValue: 25000,
       },
       {
         name: 'superEconomy',
         nbBlocks: 24,
-        defaultValue: 10000
-      }
+        defaultValue: 10000,
+      },
     ],
     bch: [
       {
         name: 'normal',
         nbBlocks: 2,
         multiplier: 1.05, // To fix fees < 1sat/byte
-        defaultValue: 2000
-      }
+        defaultValue: 2000,
+      },
     ],
     eth: [
       {
         name: 'urgent',
         nbBlocks: 1,
-        defaultValue: 10000000000
+        defaultValue: 10000000000,
       },
       {
         name: 'priority',
         nbBlocks: 2,
-        defaultValue: 5000000000
+        defaultValue: 5000000000,
       },
       {
         name: 'normal',
         nbBlocks: 3,
-        defaultValue: 1000000000
+        defaultValue: 1000000000,
       },
       {
         name: 'economy',
         nbBlocks: 4,
-        defaultValue: 1000000000
+        defaultValue: 1000000000,
       },
       {
         name: 'superEconomy',
         nbBlocks: 4,
-        defaultValue: 1000000000
-      }
+        defaultValue: 1000000000,
+      },
     ],
     xrp: [
       {
         name: 'normal',
         nbBlocks: 1, // 3 seconds
-        defaultValue: 12
-      }
-    ]
+        defaultValue: 12,
+      },
+    ],
   },
 
   // How many levels to fallback to if the value returned by the network for a given nbBlocks is -1
   FEE_LEVELS_FALLBACK: 2,
 
-  FIAT_RATE_PROVIDER: 'BitPay',
+  FIAT_RATE_PROVIDER: 'Astracore',
   FIAT_RATE_FETCH_INTERVAL: 10, // In minutes
   FIAT_RATE_MAX_LOOK_BACK_TIME: 120, // In minutes
 
@@ -153,7 +153,7 @@ module.exports = {
       delayAfter: 8, // begin slowing down responses after the 3rd request
       delayMs: 3000, // slow down subsequent responses by 3 seconds per request
       max: 15, // start blocking after 20 request
-      message: 'Too many wallets created from this IP, please try again after an hour'
+      message: 'Too many wallets created from this IP, please try again after an hour',
     },
     estimateFee: {
       windowMs: 60 * 10 * 1000, // 10 min window
@@ -161,8 +161,8 @@ module.exports = {
       delayMs: 300, // slow down subsequent responses by 3 seconds per request
 
       max: 10, // start blocking after 200 request
-      message: 'Too many request'
-    }
+      message: 'Too many request',
+    },
 
     // otherPosts: {
     //   windowMs: 60 * 60 * 1000, // 1 hour window
@@ -201,21 +201,21 @@ module.exports = {
     btc: 10000 * 1000, // 10k sat/b
     bch: 10000 * 1000, // 10k sat/b
     eth: 1000000000000, // 50 Gwei,
-    xrp: 1000000000000
+    xrp: 1000000000000,
   },
 
   MIN_TX_FEE: {
     btc: 0,
     bch: 0,
     eth: 0,
-    xrp: 0
+    xrp: 0,
   },
 
   MAX_TX_FEE: {
     btc: 0.05 * 1e8,
     bch: 0.05 * 1e8,
     eth: 1 * 1e18, // 1 eth
-    xrp: 1 * 1e6 // 1 xrp
+    xrp: 1 * 1e6, // 1 xrp
   },
 
   // ETH
@@ -223,5 +223,5 @@ module.exports = {
   MIN_GAS_LIMIT: 21000,
 
   // XRP has a non-refundable mininum activation fee / balance
-  MIN_XRP_BALANCE: 20000000
+  MIN_XRP_BALANCE: 20000000,
 };

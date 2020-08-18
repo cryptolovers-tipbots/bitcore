@@ -30,7 +30,7 @@ export interface IChain {
   getChangeAddress(server: WalletService, wallet: IWallet, opts: { changeAddress: string } & any);
   checkDust(output: { amount: number; toAddress: string; valid: boolean }, opts: { outputs: any[] } & any);
   getFee(server: WalletService, wallet: IWallet, opts: { fee: number; feePerKb: number } & any);
-  getBitcoreTx(txp: TxProposal, opts: { signed: boolean });
+  getAstracoreTx(txp: TxProposal, opts: { signed: boolean });
   convertFeePerKb(p: number, feePerKb: number);
   checkTx(server: WalletService, txp: ITxProposal);
   checkTxUTXOs(server: WalletService, txp: ITxProposal, opts: { noCashAddr: boolean } & any, cb);
@@ -41,7 +41,7 @@ export interface IChain {
   isSingleAddress(): boolean;
   supportsMultisig(): boolean;
   notifyConfirmations(network: string): boolean;
-  addSignaturesToBitcoreTx(
+  addSignaturesToAstracoreTx(
     tx: string,
     inputs: any[],
     inputPaths: any[],
@@ -60,7 +60,7 @@ const chain: { [chain: string]: IChain } = {
   BTC: new BtcChain(),
   BCH: new BchChain(),
   ETH: new EthChain(),
-  XRP: new XrpChain()
+  XRP: new XrpChain(),
 };
 
 class ChainProxy {
@@ -105,8 +105,8 @@ class ChainProxy {
     return this.get(wallet.coin).getFee(server, wallet, opts);
   }
 
-  getBitcoreTx(txp: TxProposal, opts = { signed: true }) {
-    return this.get(txp.coin).getBitcoreTx(txp, { signed: opts.signed });
+  getAstracoreTx(txp: TxProposal, opts = { signed: true }) {
+    return this.get(txp.coin).getAstracoreTx(txp, { signed: opts.signed });
   }
 
   convertFeePerKb(coin, p, feePerKb) {
@@ -157,8 +157,8 @@ class ChainProxy {
     return this.get(coin).supportsMultisig();
   }
 
-  addSignaturesToBitcoreTx(coin, tx, inputs, inputPaths, signatures, xpub, signingMethod) {
-    this.get(coin).addSignaturesToBitcoreTx(tx, inputs, inputPaths, signatures, xpub, signingMethod);
+  addSignaturesToAstracoreTx(coin, tx, inputs, inputPaths, signatures, xpub, signingMethod) {
+    this.get(coin).addSignaturesToAstracoreTx(tx, inputs, inputPaths, signatures, xpub, signingMethod);
   }
 
   validateAddress(wallet, inaddr, opts) {

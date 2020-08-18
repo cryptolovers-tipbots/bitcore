@@ -2,8 +2,8 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
-var BufferUtil = bitcore.util.buffer;
+var astracore = require('astracore-lib');
+var BufferUtil = astracore.util.buffer;
 
 /**
  * Request information about active peers
@@ -17,9 +17,9 @@ function GetaddrMessage(arg, options) {
 }
 inherits(GetaddrMessage, Message);
 
-GetaddrMessage.prototype.setPayload = function() {};
+GetaddrMessage.prototype.setPayload = function () {};
 
-GetaddrMessage.prototype.getPayload = function() {
+GetaddrMessage.prototype.getPayload = function () {
   return BufferUtil.EMPTY_BUFFER;
 };
 

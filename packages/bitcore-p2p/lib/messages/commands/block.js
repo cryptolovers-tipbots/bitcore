@@ -2,9 +2,9 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib');
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
+var astracore = require('astracore-lib');
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
 
 /**
  * @param {Block=} arg - An instance of a Block
@@ -17,15 +17,12 @@ function BlockMessage(arg, options) {
   Message.call(this, options);
   this.Block = options.Block;
   this.command = 'block';
-  $.checkArgument(
-    _.isUndefined(arg) || arg instanceof this.Block,
-    'An instance of Block or undefined is expected'
-  );
+  $.checkArgument(_.isUndefined(arg) || arg instanceof this.Block, 'An instance of Block or undefined is expected');
   this.block = arg;
 }
 inherits(BlockMessage, Message);
 
-BlockMessage.prototype.setPayload = function(payload) {
+BlockMessage.prototype.setPayload = function (payload) {
   if (this.Block.prototype.fromRaw) {
     this.block = this.Block.fromRaw(payload);
   } else {
@@ -33,7 +30,7 @@ BlockMessage.prototype.setPayload = function(payload) {
   }
 };
 
-BlockMessage.prototype.getPayload = function() {
+BlockMessage.prototype.getPayload = function () {
   if (this.Block.prototype.toRaw) {
     return this.block.toRaw();
   }

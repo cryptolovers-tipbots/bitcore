@@ -1,4 +1,4 @@
 'use strict';
 
-var startGulp = require('bitcore-build');
-module.exports = startGulp('p2p', {skipBrowser: true})
+var startGulp = require('astracore-build');
+module.exports = startGulp('p2p', { skipBrowser: true });

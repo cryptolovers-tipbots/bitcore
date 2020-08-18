@@ -4,8 +4,8 @@ import 'source-map-support/register';
 import { Client } from './client';
 import { Encryption } from './encryption';
 import { Storage } from './storage';
-const { PrivateKey } = require('crypto-wallet-core').BitcoreLib;
-const Mnemonic = require('bitcore-mnemonic');
+const { PrivateKey } = require('crypto-wallet-core').AstracoreLib;
+const Mnemonic = require('astracore-mnemonic');
 const { ParseApiStream } = require('./stream-util');
 
 export interface KeyImport {
@@ -52,11 +52,11 @@ export class Wallet {
   constructor(params: Wallet | WalletObj) {
     Object.assign(this, params);
     if (!this.baseUrl) {
-      this.baseUrl = 'https://api.bitcore.io/api';
+      this.baseUrl = 'https://api.astracore.io/api';
     }
     this.client = new Client({
       apiUrl: this.getApiUrl(),
-      authKey: this.getAuthSigningKey()
+      authKey: this.getAuthSigningKey(),
     });
     this.addressIndex = this.addressIndex || 0;
   }
@@ -112,7 +112,7 @@ export class Wallet {
         path,
         errorIfExists: false,
         createIfMissing: true,
-        storageType
+        storageType,
       });
 
     let alreadyExists;
@@ -131,7 +131,7 @@ export class Wallet {
       xPubKey: hdPrivKey.xpubkey,
       pubKey,
       tokens: [],
-      storageType
+      storageType,
     });
 
     if (lite) {
@@ -140,19 +140,19 @@ export class Wallet {
       wallet.lite = true;
     }
 
-    // save wallet to storage and then bitcore-node
+    // save wallet to storage and then astracore-node
     await storage.saveWallet({ wallet });
     const loadedWallet = await this.loadWallet({
       storage,
       name,
-      storageType
+      storageType,
     });
 
     console.log(mnemonic.toString());
 
-    await loadedWallet.register().catch(e => {
+    await loadedWallet.register().catch((e) => {
       console.debug(e);
-      console.error('Failed to register wallet with bitcore-node.');
+      console.error('Failed to register wallet with astracore-node.');
     });
 
     return loadedWallet;
@@ -164,7 +164,7 @@ export class Wallet {
     try {
       alreadyExists = await Wallet.loadWallet({
         storage,
-        name
+        name,
       });
     } catch (err) {
       console.log(err);
@@ -203,7 +203,7 @@ export class Wallet {
     }
     this.unlocked = {
       encryptionKey,
-      masterKey
+      masterKey,
     };
     return this;
   }
@@ -222,7 +222,7 @@ export class Wallet {
       path: this.derivationPath,
       network: this.network,
       chain: this.chain,
-      apiUrl: this.getApiUrl()
+      apiUrl: this.getApiUrl(),
     };
     return this.client.register({ payload });
   }
@@ -235,7 +235,7 @@ export class Wallet {
     let payload;
     if (token) {
       let tokenContractAddress;
-      const tokenObj = this.tokens.find(tok => tok.symbol === token);
+      const tokenObj = this.tokens.find((tok) => tok.symbol === token);
       if (!tokenObj) {
         throw new Error(`${token} not found on wallet ${this.name}`);
       }
@@ -254,7 +254,7 @@ export class Wallet {
     const { includeSpent = false } = params;
     return this.client.getCoins({
       pubKey: this.authPubKey,
-      includeSpent
+      includeSpent,
     });
   }
 
@@ -264,13 +264,13 @@ export class Wallet {
       const { includeSpent = false } = params;
       const utxoRequest = this.client.getCoins({
         pubKey: this.authPubKey,
-        includeSpent
+        includeSpent,
       });
       utxoRequest
         .pipe(new ParseApiStream())
-        .on('data', utxo => utxoArray.push(utxo))
+        .on('data', (utxo) => utxoArray.push(utxo))
         .on('end', () => resolve(utxoArray))
-        .on('err', err => reject(err));
+        .on('err', (err) => reject(err));
     });
   }
 
@@ -278,7 +278,7 @@ export class Wallet {
     const { token } = params;
     if (token) {
       let tokenContractAddress;
-      const tokenObj = this.tokens.find(tok => tok.symbol === token);
+      const tokenObj = this.tokens.find((tok) => tok.symbol === token);
       if (!tokenObj) {
         throw new Error(`${token} not found on wallet ${this.name}`);
       }
@@ -286,7 +286,7 @@ export class Wallet {
     }
     return this.client.listTransactions({
       ...params,
-      pubKey: this.authPubKey
+      pubKey: this.authPubKey,
     });
   }
 
@@ -301,7 +301,7 @@ export class Wallet {
     this.tokens.push({
       symbol: params.symbol,
       address: params.address,
-      decimals: params.decimals
+      decimals: params.decimals,
     });
     await this.saveWallet();
   }
@@ -324,7 +324,7 @@ export class Wallet {
     const chain = params.token ? 'ERC20' : this.chain;
     let tokenContractAddress;
     if (params.token) {
-      const tokenObj = this.tokens.find(tok => tok.symbol === params.token);
+      const tokenObj = this.tokens.find((tok) => tok.symbol === params.token);
       if (!tokenObj) {
         throw new Error(`${params.token} not found on wallet ${this.name}`);
       }
@@ -346,7 +346,7 @@ export class Wallet {
       gasPrice: params.gasPrice || params.feeRate || params.fee,
       gasLimit: params.gasLimit || 200000,
       data: params.data,
-      tokenAddress: tokenContractAddress
+      tokenAddress: tokenContractAddress,
     };
     return Transactions.create(payload);
   }
@@ -356,7 +356,7 @@ export class Wallet {
     const payload = {
       network: this.network,
       chain: this.chain,
-      rawTx: tx
+      rawTx: tx,
     };
     return this.client.broadcast({ payload });
   }
@@ -364,20 +364,20 @@ export class Wallet {
   async importKeys(params: { keys: KeyImport[] }) {
     const { keys } = params;
     const { encryptionKey } = this.unlocked;
-    const keysToSave = keys.filter(key => typeof key.privKey === 'string');
+    const keysToSave = keys.filter((key) => typeof key.privKey === 'string');
     if (keysToSave.length) {
       await this.storage.addKeys({
         keys: keysToSave,
         encryptionKey,
-        name: this.name
+        name: this.name,
       });
     }
-    const addedAddresses = keys.map(key => {
+    const addedAddresses = keys.map((key) => {
       return { address: key.address };
     });
     return this.client.importAddresses({
       pubKey: this.authPubKey,
-      payload: addedAddresses
+      payload: addedAddresses,
     });
   }
 
@@ -388,9 +388,9 @@ export class Wallet {
       await new Promise((resolve, reject) => {
         this.getUtxos()
           .pipe(new ParseApiStream())
-          .on('data', utxo => utxos.push(utxo))
+          .on('data', (utxo) => utxos.push(utxo))
           .on('end', () => resolve())
-          .on('err', err => reject(err));
+          .on('err', (err) => reject(err));
       });
     }
     let addresses = [];
@@ -403,12 +403,12 @@ export class Wallet {
       decryptedKeys = await this.storage.getKeys({
         addresses,
         name: this.name,
-        encryptionKey: this.unlocked.encryptionKey
+        encryptionKey: this.unlocked.encryptionKey,
       });
     } else {
       addresses.push(keys[0]);
-      utxos.forEach(function(element) {
-        let keyToDecrypt = keys.find(key => key.address === element.address);
+      utxos.forEach(function (element) {
+        let keyToDecrypt = keys.find((key) => key.address === element.address);
         addresses.push(keyToDecrypt);
       });
       let decryptedParams = Encryption.bitcoinCoreDecrypt(addresses, passphrase);
@@ -420,14 +420,14 @@ export class Wallet {
       tx,
       keys: decryptedKeys,
       key: decryptedKeys[0],
-      utxos
+      utxos,
     };
     return Transactions.sign({ ...payload });
   }
 
   async checkWallet() {
     return this.client.checkWallet({
-      pubKey: this.authPubKey
+      pubKey: this.authPubKey,
     });
   }
 
@@ -443,15 +443,15 @@ export class Wallet {
     }
     return this.client.importAddresses({
       pubKey: this.authPubKey,
-      payload: addresses.map(a => ({ address: a }))
+      payload: addresses.map((a) => ({ address: a })),
     });
   }
 
   async getAddresses() {
     const walletAddresses = await this.client.getAddresses({
-      pubKey: this.authPubKey
+      pubKey: this.authPubKey,
     });
-    return walletAddresses.map(walletAddress => walletAddress.address);
+    return walletAddresses.map((walletAddress) => walletAddress.address);
   }
 
   deriveAddress(addressIndex, isChange) {
@@ -484,7 +484,7 @@ export class Wallet {
     this.addressIndex++;
     await this.importKeys({ keys });
     await this.saveWallet();
-    return keys.map(key => key.address.toString());
+    return keys.map((key) => key.address.toString());
   }
 
   async nextAddressPairLite(withChangeAddress?: boolean) {
@@ -497,7 +497,7 @@ export class Wallet {
     this.addressIndex++;
     await this.client.importAddresses({
       pubKey: this.authPubKey,
-      payload: addresses
+      payload: addresses,
     });
     await this.saveWallet();
     return addresses;

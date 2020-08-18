@@ -2,13 +2,13 @@
 
 var Message = require('../message');
 var inherits = require('util').inherits;
-var bitcore = require('bitcore-lib-cash');
+var astracore = require('astracore-lib-cash');
 var utils = require('../utils');
-var BufferUtil = bitcore.util.buffer;
-var BufferWriter = bitcore.encoding.BufferWriter;
-var BufferReader = bitcore.encoding.BufferReader;
-var $ = bitcore.util.preconditions;
-var _ = bitcore.deps._;
+var BufferUtil = astracore.util.buffer;
+var BufferWriter = astracore.encoding.BufferWriter;
+var BufferReader = astracore.encoding.BufferReader;
+var $ = astracore.util.preconditions;
+var _ = astracore.deps._;
 
 /**
  * Request peer to add data to a bloom filter already set by 'filterload'
@@ -28,14 +28,14 @@ function FilteraddMessage(arg, options) {
 }
 inherits(FilteraddMessage, Message);
 
-FilteraddMessage.prototype.setPayload = function(payload) {
+FilteraddMessage.prototype.setPayload = function (payload) {
   $.checkArgument(payload);
   var parser = new BufferReader(payload);
   this.data = parser.readVarLengthBuffer();
   utils.checkFinished(parser);
 };
 
-FilteraddMessage.prototype.getPayload = function() {
+FilteraddMessage.prototype.getPayload = function () {
   var bw = new BufferWriter();
   bw.writeVarintNum(this.data.length);
   bw.write(this.data);

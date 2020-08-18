@@ -1,8 +1,8 @@
 {
-  "name": "bitcore-mnemonic",
+  "name": "astracore-mnemonic",
   "version": "8.22.0",
-  "description": "BIP39 Mnemonics implemented for Bitcore.",
-  "author": "BitPay <dev@bitpay.com>",
+  "description": "BIP39 Mnemonics implemented for Astracore.",
+  "author": "Astracore <dev@bitpay.com>",
   "main": "index.js",
   "scripts": {
     "test": "gulp test",
@@ -23,11 +23,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/bitpay/bitcore-mnemonic.git"
+    "url": "https://github.com/bitpay/astracore-mnemonic.git"
   },
   "keywords": [
     "bitcoin",
-    "bitcore",
+    "astracore",
     "mnemonic",
     "crypto",
     "cryptography",
@@ -36,18 +36,18 @@
   "license": "MIT",
   "devDependencies": {
     "assert": "^1.4.1",
-    "bitcore-build": "^8.22.0",
+    "astracore-build": "^8.22.0",
     "brfs": "^2.0.1",
     "chai": "^4.2.0",
     "gulp": "^4.0.0",
     "mocha": "^5.2.0"
   },
   "dependencies": {
-    "bitcore-lib": "^8.22.0",
+    "astracore-lib": "^8.22.0",
     "unorm": "^1.4.1"
   },
   "peerDependencies": {
-    "bitcore-lib": "^8.20.1"
+    "astracore-lib": "^8.20.1"
   },
   "gitHead": "012cc0216a9bc6b195035855bd17149bad41acd1"
 }

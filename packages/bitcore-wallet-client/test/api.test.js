@@ -17,13 +17,13 @@ var oldCredentials = require('./legacyCredentialsExports');
 
 var CWC = require('crypto-wallet-core');
 
-var Bitcore = CWC.BitcoreLib;
-var Bitcore_ = {
-  btc: Bitcore,
-  bch: CWC.BitcoreLibCash,
+var Astracore = CWC.AstracoreLib;
+var Astracore_ = {
+  btc: Astracore,
+  bch: CWC.AstracoreLibCash,
 };
 
-var BWS = require('bitcore-wallet-service');
+var BWS = require('astracore-wallet-service');
 
 var { Constants } = require('../ts_build/lib/common');
 var Client = require('../ts_build').default;
@@ -65,39 +65,40 @@ helpers.stubRequest = (err, res) => {
     timeout: sinon.stub(),
     end: sinon.stub().yields(err, res),
   };
- var reqFactory = _.reduce(['get', 'post', 'put', 'delete'], (mem, verb) => {
-    mem[verb] = (url) => {
-      return request;
-    };
-    return mem;
-  }, {});
+  var reqFactory = _.reduce(
+    ['get', 'post', 'put', 'delete'],
+    (mem, verb) => {
+      mem[verb] = (url) => {
+        return request;
+      };
+      return mem;
+    },
+    {}
+  );
 
   return reqFactory;
 };
 
-
-
 helpers.generateUtxos = (scriptType, publicKeyRing, path, requiredSignatures, amounts) => {
   var amounts = [].concat(amounts);
   var utxos = _.map(amounts, (amount, i) => {
-
     var address = Utils.deriveAddress(scriptType, publicKeyRing, path, requiredSignatures, 'testnet');
 
     var scriptPubKey;
     switch (scriptType) {
       case Constants.SCRIPT_TYPES.P2WSH:
       case Constants.SCRIPT_TYPES.P2SH:
-        scriptPubKey = new Bitcore.Script.buildMultisigOut(address.publicKeys, requiredSignatures).toScriptHashOut();
+        scriptPubKey = new Astracore.Script.buildMultisigOut(address.publicKeys, requiredSignatures).toScriptHashOut();
         break;
       case Constants.SCRIPT_TYPES.P2WPKH:
       case Constants.SCRIPT_TYPES.P2PKH:
-        scriptPubKey = new Bitcore.Script.buildPublicKeyHashOut(address.address);
+        scriptPubKey = new Astracore.Script.buildPublicKeyHashOut(address.address);
         break;
     }
     should.exist(scriptPubKey);
 
     var obj = {
-      txid: new Bitcore.crypto.Hash.sha256(Buffer.alloc(i)).toString('hex'),
+      txid: new Astracore.crypto.Hash.sha256(Buffer.alloc(i)).toString('hex'),
       vout: 100,
       satoshis: helpers.toSatoshi(amount),
       scriptPubKey: scriptPubKey.toBuffer().toString('hex'),
@@ -123,58 +124,84 @@ helpers.createAndJoinWallet = (clients, keys, m, n, opts, cb) => {
   };
 
   keys[0] = opts.key || Key.create(keyOpts);
-  let cred = keys[0].createCredentials(null, { coin: coin, network: network, account: 0, n: n, addressType: opts.addressType });
-  clients[0].fromObj(cred);
-
-
-  clients[0].createWallet('mywallet', 'creator', m, n, {
+  let cred = keys[0].createCredentials(null, {
     coin: coin,
     network: network,
-    singleAddress: !!opts.singleAddress,
-    doNotCheck: true,
-    useNativeSegwit: !!opts.useNativeSegwit
-  }, (err, secret) => {
-    if (err) console.log(err);
-    should.not.exist(err);
-
-    if (n > 1) {
-      should.exist(secret);
-    }
-
-    async.series([
-
-      (next) => {
-        async.each(_.range(1, n), (i, cb) => {
-          keys[i] = Key.create(keyOpts);
-          clients[i].fromString(
-            keys[i].createCredentials(null, {
-              coin: coin,
-              network: network,
-              account: 0,
-              n: n,
-              addressType: opts.addressType
-            })
-          );
-          clients[i].joinWallet(secret, 'copayer ' + i, {
-            coin: coin
-          }, cb);
-        }, next);
-      },
-      (next) => {
-        async.each(_.range(n), (i, cb) => {
-          clients[i].openWallet(cb);
-        }, next);
-      },
-    ],
-      (err) => {
-        should.not.exist(err);
-        return cb({
-          m: m,
-          n: n,
-          secret: secret,
-        });
-      });
+    account: 0,
+    n: n,
+    addressType: opts.addressType,
   });
+  clients[0].fromObj(cred);
+
+  clients[0].createWallet(
+    'mywallet',
+    'creator',
+    m,
+    n,
+    {
+      coin: coin,
+      network: network,
+      singleAddress: !!opts.singleAddress,
+      doNotCheck: true,
+      useNativeSegwit: !!opts.useNativeSegwit,
+    },
+    (err, secret) => {
+      if (err) console.log(err);
+      should.not.exist(err);
+
+      if (n > 1) {
+        should.exist(secret);
+      }
+
+      async.series(
+        [
+          (next) => {
+            async.each(
+              _.range(1, n),
+              (i, cb) => {
+                keys[i] = Key.create(keyOpts);
+                clients[i].fromString(
+                  keys[i].createCredentials(null, {
+                    coin: coin,
+                    network: network,
+                    account: 0,
+                    n: n,
+                    addressType: opts.addressType,
+                  })
+                );
+                clients[i].joinWallet(
+                  secret,
+                  'copayer ' + i,
+                  {
+                    coin: coin,
+                  },
+                  cb
+                );
+              },
+              next
+            );
+          },
+          (next) => {
+            async.each(
+              _.range(n),
+              (i, cb) => {
+                clients[i].openWallet(cb);
+              },
+              next
+            );
+          },
+        ],
+        (err) => {
+          should.not.exist(err);
+          return cb({
+            m: m,
+            n: n,
+            secret: secret,
+          });
+        }
+      );
+    }
+  );
 };
 
 helpers.tamperResponse = (clients, method, url, args, tamper, cb) => {
@@ -193,19 +220,23 @@ helpers.tamperResponse = (clients, method, url, args, tamper, cb) => {
 
 helpers.createAndPublishTxProposal = (client, opts, cb) => {
   if (!opts.outputs) {
-    opts.outputs = [{
-      toAddress: opts.toAddress,
-      amount: opts.amount,
-    }];
+    opts.outputs = [
+      {
+        toAddress: opts.toAddress,
+        amount: opts.amount,
+      },
+    ];
   }
   client.createTxProposal(opts, (err, txp) => {
     if (err) return cb(err);
-    client.publishTxProposal({
-      txp: txp
-    }, cb);
+    client.publishTxProposal(
+      {
+        txp: txp,
+      },
+      cb
+    );
   });
 };
-
 
 var blockchainExplorerMock = {
   register: sinon.stub().callsArgWith(1, null, null),
@@ -213,12 +244,9 @@ var blockchainExplorerMock = {
   addAddresses: sinon.stub().callsArgWith(2, null, null),
 };
 
-
-
 blockchainExplorerMock.getUtxos = (wallet, height, cb) => {
   return cb(null, _.cloneDeep(blockchainExplorerMock.utxos));
 };
-
 
 // v8
 blockchainExplorerMock.getAddressUtxos = (address, height, cb) => {
@@ -229,10 +257,8 @@ blockchainExplorerMock.getAddressUtxos = (address, height, cb) => {
   return cb(null, _.cloneDeep(selected));
 };
 
-
-
 blockchainExplorerMock.setUtxo = (address, amount, m, confirmations) => {
-  var B = Bitcore_[address.coin];
+  var B = Astracore_[address.coin];
   var scriptPubKey;
   switch (address.type) {
     case Constants.SCRIPT_TYPES.P2WSH:
@@ -246,26 +272,29 @@ blockchainExplorerMock.setUtxo = (address, amount, m, confirmations) => {
   }
   should.exist(scriptPubKey);
   blockchainExplorerMock.utxos.push({
-    txid: new Bitcore.crypto.Hash.sha256(Buffer.alloc(Math.random() * 100000)).toString('hex'),
+    txid: new Astracore.crypto.Hash.sha256(Buffer.alloc(Math.random() * 100000)).toString('hex'),
     outputIndex: 0,
     amount: amount,
     satoshis: amount * 1e8,
     address: address.address,
     scriptPubKey: scriptPubKey.toBuffer().toString('hex'),
-    confirmations: _.isUndefined(confirmations) ? Math.floor((Math.random() * 100) + 1) : +confirmations,
+    confirmations: _.isUndefined(confirmations) ? Math.floor(Math.random() * 100 + 1) : +confirmations,
   });
 };
 
-
-blockchainExplorerMock.supportsGrouping = () => { return false; }
-blockchainExplorerMock.getBlockchainHeight = (cb) => { return cb(null, 1000); }
+blockchainExplorerMock.supportsGrouping = () => {
+  return false;
+};
+blockchainExplorerMock.getBlockchainHeight = (cb) => {
+  return cb(null, 1000);
+};
 
 blockchainExplorerMock.broadcast = (raw, cb) => {
   blockchainExplorerMock.lastBroadcasted = raw;
 
   let hash;
   try {
-    let tx = new Bitcore.Transaction(raw);
+    let tx = new Astracore.Transaction(raw);
     if (_.isEmpty(tx.outputs)) {
       throw 'no bitcoin';
     }
@@ -274,12 +303,12 @@ blockchainExplorerMock.broadcast = (raw, cb) => {
     return cb(null, hash);
   } catch (e) {
     // try eth
-     hash = CWC.Transactions.getHash({
+    hash = CWC.Transactions.getHash({
       tx: raw[0],
       chain: 'ETH',
     });
     return cb(null, hash);
-  };
+  }
 };
 
 blockchainExplorerMock.setHistory = (txs) => {
@@ -308,9 +337,9 @@ var createTxsV8 = (nr, bcHeight, txs) => {
         size: 226,
         category: 'receive',
         satoshis: 30001,
-        // this is translated on V8.prototype.getTransactions 
+        // this is translated on V8.prototype.getTransactions
         amount: 30001 / 1e8,
-        height: (i == 0) ? -1 : bcHeight - i + 1,
+        height: i == 0 ? -1 : bcHeight - i + 1,
         address: 'muFJi3ZPfR5nhxyD7dfpx2nYZA8Wmwzgck',
         blockTime: '2018-09-21T18:08:31.000Z',
       });
@@ -320,12 +349,12 @@ var createTxsV8 = (nr, bcHeight, txs) => {
   return txs;
 };
 
-
-
 blockchainExplorerMock.getTransactions = (wallet, startBlock, cb) => {
   var list = [].concat(blockchainExplorerMock.txHistory);
   // -1 = mempool, always included in server' s v8.js
-  list = _.filter(list, (x) => { return x.height >= startBlock || x.height == -1; });
+  list = _.filter(list, (x) => {
+    return x.height >= startBlock || x.height == -1;
+  });
   return cb(null, list);
 };
 
@@ -352,7 +381,6 @@ blockchainExplorerMock.estimateGas = (nbBlocks, cb) => {
   return cb(null, '20000000000');
 };
 
-
 blockchainExplorerMock.getBalance = (nbBlocks, cb) => {
   return cb(null, {
     unconfirmed: 0,
@@ -361,19 +389,15 @@ blockchainExplorerMock.getBalance = (nbBlocks, cb) => {
   });
 };
 
-
-
 blockchainExplorerMock.getTransactionCount = (addr, cb) => {
   return cb(null, 0);
 };
-
 
 blockchainExplorerMock.reset = () => {
   blockchainExplorerMock.utxos = [];
   blockchainExplorerMock.txHistory = [];
   blockchainExplorerMock.feeLevels = [];
 };
-
 
 helpers.newDb = (extra, cb) => {
   extra = extra || '';
@@ -383,10 +407,11 @@ helpers.newDb = (extra, cb) => {
       return cb(err, in_db);
     });
   });
-}
+};
 
 var db;
-describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackoverflow.com/questions/23492043/change-default-timeout-for-mocha, or this.timeout() will BREAK!
+describe('client API', function () {
+  // DONT USE LAMBAS HERE!!! https://stackoverflow.com/questions/23492043/change-default-timeout-for-mocha, or this.timeout() will BREAK!
   //
   var clients, app, sandbox, storage, keys, i;
   this.timeout(8000);
@@ -407,13 +432,14 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
   beforeEach((done) => {
     var expressApp = new ExpressApp();
-    expressApp.start({
-      ignoreRateLimiter: true,
-      storage: storage,
-      blockchainExplorer: blockchainExplorerMock,
-      disableLogs: true,
-      doNotCheckV8: true,
-    },
+    expressApp.start(
+      {
+        ignoreRateLimiter: true,
+        storage: storage,
+        blockchainExplorer: blockchainExplorerMock,
+        disableLogs: true,
+        doNotCheckV8: true,
+      },
       () => {
         app = expressApp.app;
 
@@ -430,7 +456,8 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           sandbox.stub(log, 'error');
         }
         done();
-      });
+      }
+    );
   });
   afterEach((done) => {
     sandbox.restore();
@@ -441,13 +468,13 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
     it('should set the log level based on the logLevel option', () => {
       var originalLogLevel = log.level;
       var client = new Client({
-        logLevel: 'info'
+        logLevel: 'info',
       });
       client.logLevel.should.equal('info');
       log.level.should.equal('info');
 
       var client = new Client({
-        logLevel: 'debug'
+        logLevel: 'debug',
       });
       client.logLevel.should.equal('debug');
       log.level.should.equal('debug');
@@ -458,7 +485,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
     it('should use silent for the log level if no logLevel is specified', () => {
       var originalLogLevel = log.level;
 
-      log.level = 'foo;'
+      log.level = 'foo;';
 
       var client = new Client();
       client.logLevel.should.equal('silent');
@@ -469,14 +496,13 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
   });
 
   describe('Client Internals', () => {
-    it('should expose bitcore', () => {
-      should.exist(Bitcore);
-      should.exist(Bitcore.HDPublicKey);
+    it('should expose astracore', () => {
+      should.exist(Astracore);
+      should.exist(Astracore.HDPublicKey);
     });
   });
   // todo
   describe('Server internals', () => {
-
     var k;
 
     before(() => {
@@ -498,21 +524,30 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       s.storeWallet = sinon.stub().yields('bigerror');
       s.fetchWallet = sinon.stub().yields(null);
       var expressApp = new ExpressApp();
-      expressApp.start({
-        storage: s,
-        blockchainExplorer: blockchainExplorerMock,
-        disableLogs: true,
-      }, () => {
-        var client = helpers.newClient(app);
-        client.createWallet('1', '2', 1, 1, {
-          network: 'testnet'
+      expressApp.start(
+        {
+          storage: s,
+          blockchainExplorer: blockchainExplorerMock,
+          disableLogs: true,
         },
-          (err) => {
-            should.exist(err);
-            err.toString().should.contain('credentials');
-            done();
-          })
-      });
+        () => {
+          var client = helpers.newClient(app);
+          client.createWallet(
+            '1',
+            '2',
+            1,
+            1,
+            {
+              network: 'testnet',
+            },
+            (err) => {
+              should.exist(err);
+              err.toString().should.contain('credentials');
+              done();
+            }
+          );
+        }
+      );
     });
 
     it('should handle critical errors', (done) => {
@@ -520,96 +555,117 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       s.storeWallet = sinon.stub().yields('bigerror');
       s.fetchWallet = sinon.stub().yields(null);
       var expressApp = new ExpressApp();
-      expressApp.start({
-        storage: s,
-        blockchainExplorer: blockchainExplorerMock,
-        disableLogs: true,
-      }, () => {
-        var s2 = sinon.stub();
-        s2.load = sinon.stub().yields(null);
-        var client = helpers.newClient(app);
-        client.storage = s2;
-        client.fromString(
-          k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 })
-        );
-        client.createWallet('1', '2', 1, 1, {
-          network: 'testnet'
+      expressApp.start(
+        {
+          storage: s,
+          blockchainExplorer: blockchainExplorerMock,
+          disableLogs: true,
         },
-          (err) => {
-            err.should.be.an.instanceOf(Error);
-            err.message.should.equal('bigerror');
-            done();
-          });
-      });
+        () => {
+          var s2 = sinon.stub();
+          s2.load = sinon.stub().yields(null);
+          var client = helpers.newClient(app);
+          client.storage = s2;
+          client.fromString(k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 }));
+          client.createWallet(
+            '1',
+            '2',
+            1,
+            1,
+            {
+              network: 'testnet',
+            },
+            (err) => {
+              err.should.be.an.instanceOf(Error);
+              err.message.should.equal('bigerror');
+              done();
+            }
+          );
+        }
+      );
     });
 
     it('should handle critical errors (Case2)', (done) => {
       var s = sinon.stub();
       s.storeWallet = sinon.stub().yields({
         code: 501,
-        message: 'wow'
+        message: 'wow',
       });
       s.fetchWallet = sinon.stub().yields(null);
       var expressApp = new ExpressApp();
-      expressApp.start({
-        storage: s,
-        blockchainExplorer: blockchainExplorerMock,
-        disableLogs: true,
-      }, () => {
-        var s2 = sinon.stub();
-        s2.load = sinon.stub().yields(null);
-        var client = helpers.newClient(app);
-        client.storage = s2;
-        client.fromString(
-          k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 })
-        );
-
-        client.createWallet('1', '2', 1, 1, {
-          network: 'testnet'
+      expressApp.start(
+        {
+          storage: s,
+          blockchainExplorer: blockchainExplorerMock,
+          disableLogs: true,
         },
-          (err) => {
-            err.should.be.an.instanceOf(Error);
-            err.message.should.equal('wow');
-            done();
-          });
-      });
+        () => {
+          var s2 = sinon.stub();
+          s2.load = sinon.stub().yields(null);
+          var client = helpers.newClient(app);
+          client.storage = s2;
+          client.fromString(k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 }));
+
+          client.createWallet(
+            '1',
+            '2',
+            1,
+            1,
+            {
+              network: 'testnet',
+            },
+            (err) => {
+              err.should.be.an.instanceOf(Error);
+              err.message.should.equal('wow');
+              done();
+            }
+          );
+        }
+      );
     });
 
     it('should handle critical errors (Case3)', (done) => {
       var s = sinon.stub();
       s.storeWallet = sinon.stub().yields({
         code: 404,
-        message: 'wow'
+        message: 'wow',
       });
       s.fetchWallet = sinon.stub().yields(null);
       var expressApp = new ExpressApp();
-      expressApp.start({
-        storage: s,
-        blockchainExplorer: blockchainExplorerMock,
-        disableLogs: true,
-      }, () => {
-        var s2 = sinon.stub();
-        s2.load = sinon.stub().yields(null);
-        var client = helpers.newClient(app);
-        client.storage = s2;
-        client.fromString(
-          k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 })
-        );
-
-        client.createWallet('1', '2', 1, 1, {
-          network: 'testnet'
+      expressApp.start(
+        {
+          storage: s,
+          blockchainExplorer: blockchainExplorerMock,
+          disableLogs: true,
         },
-          (err) => {
-            err.should.be.an.instanceOf(Errors.NOT_FOUND);
-            done();
-          });
-      });
+        () => {
+          var s2 = sinon.stub();
+          s2.load = sinon.stub().yields(null);
+          var client = helpers.newClient(app);
+          client.storage = s2;
+          client.fromString(k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 }));
+
+          client.createWallet(
+            '1',
+            '2',
+            1,
+            1,
+            {
+              network: 'testnet',
+            },
+            (err) => {
+              err.should.be.an.instanceOf(Errors.NOT_FOUND);
+              done();
+            }
+          );
+        }
+      );
     });
 
     it('should handle critical errors (Case4)', (done) => {
       var body = {
         code: 999,
-        message: 'unexpected body'
+        message: 'unexpected body',
       };
       var ret = Request._parseError(body);
       ret.should.be.an.instanceOf(Error);
@@ -619,17 +675,22 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
     it('should handle critical errors (Case5)', (done) => {
       clients[0].request.r = helpers.stubRequest('some error');
-      clients[0].fromString(
-        k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 })
-      );
+      clients[0].fromString(k.createCredentials(null, { coin: 'btc', n: 1, network: 'testnet', account: 0 }));
 
-      clients[0].createWallet('mywallet', 'creator', 1, 2, {
-        network: 'testnet'
-      }, (err, secret) => {
-        should.exist(err);
-        err.should.be.an.instanceOf(Errors.CONNECTION_ERROR);
-        done();
-      });
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        2,
+        {
+          network: 'testnet',
+        },
+        (err, secret) => {
+          should.exist(err);
+          err.should.be.an.instanceOf(Errors.CONNECTION_ERROR);
+          done();
+        }
+      );
     });
 
     it('should correctly use remote message', (done) => {
@@ -660,11 +721,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
   });
 
   describe('Build & sign txs', () => {
-    var masterPrivateKey = 'tprv8ZgxMBicQKsPd8U9aBBJ5J2v8XMwKwZvf8qcu2gLK5FRrsrPeSgkEcNHqKx4zwv6cP536m68q2UD7wVM24zdSCpaJRmpowaeJTeVMXL5v5k';
+    var masterPrivateKey =
+      'tprv8ZgxMBicQKsPd8U9aBBJ5J2v8XMwKwZvf8qcu2gLK5FRrsrPeSgkEcNHqKx4zwv6cP536m68q2UD7wVM24zdSCpaJRmpowaeJTeVMXL5v5k';
     var derivedPrivateKey = {
-      'BIP44': new Bitcore.HDPrivateKey(masterPrivateKey).deriveChild("m/44'/1'/0'").toString(),
-      'BIP45': new Bitcore.HDPrivateKey(masterPrivateKey).deriveChild("m/45'").toString(),
-      'BIP48': new Bitcore.HDPrivateKey(masterPrivateKey).deriveChild("m/48'/1'/0'").toString(),
+      BIP44: new Astracore.HDPrivateKey(masterPrivateKey).deriveChild("m/44'/1'/0'").toString(),
+      BIP45: new Astracore.HDPrivateKey(masterPrivateKey).deriveChild("m/45'").toString(),
+      BIP48: new Astracore.HDPrivateKey(masterPrivateKey).deriveChild("m/48'/1'/0'").toString(),
     };
 
     describe('#buildTx', () => {
@@ -672,9 +734,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
@@ -683,7 +747,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           toAddress: toAddress,
           amount: 1200,
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -696,7 +760,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         _.isString(t).should.be.true;
         /^[\da-f]+$/.test(t).should.be.true;
 
-        var t2 = new Bitcore.Transaction(t);
+        var t2 = new Astracore.Transaction(t);
         t2.inputs.length.should.equal(2);
         t2.outputs.length.should.equal(2);
         t2.outputs[0].satoshis.should.equal(1200);
@@ -705,9 +769,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
@@ -716,7 +782,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           toAddress: toAddress,
           amount: 1200,
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -725,19 +791,21 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2PKH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
           disableSmallFees: true,
           disableLargeFees: true,
         });
 
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
         t.getFee().should.equal(10050);
       });
       it('should build a P2WPKH tx correctly (BIP44)', () => {
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         const toAddress = Utils.deriveAddress('P2WPKH', publicKeyRing, 'm/0/0', 1, 'livenet', 'btc');
         const changeAddress = Utils.deriveAddress('P2WPKH', publicKeyRing, 'm/0/1', 1, 'livenet', 'btc');
@@ -752,7 +820,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           toAddress: toAddress.address,
           amount: 1200,
           changeAddress: {
-            address: changeAddress.address
+            address: changeAddress.address,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -761,19 +829,21 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2WPKH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
           disableSmallFees: true,
           disableLargeFees: true,
         });
 
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
         t.getFee().should.equal(10050);
       });
       it('should build a P2WSH tx correctly (BIP48)', () => {
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP48']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP48']),
+          },
+        ];
 
         const toAddress = Utils.deriveAddress('P2WSH', publicKeyRing, 'm/0/0', 1, 'livenet', 'btc');
         const changeAddress = Utils.deriveAddress('P2WSH', publicKeyRing, 'm/0/1', 1, 'livenet', 'btc');
@@ -788,7 +858,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           toAddress: toAddress.address,
           amount: 1200,
           changeAddress: {
-            address: changeAddress.address
+            address: changeAddress.address,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -797,22 +867,24 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2WSH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
           disableSmallFees: true,
           disableLargeFees: true,
         });
 
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
         t.getFee().should.equal(10050);
       });
       it('should build a tx correctly (BIP48)', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP48']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP48']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
@@ -821,7 +893,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           toAddress: toAddress,
           amount: 1200,
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -830,24 +902,24 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2PKH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
           disableSmallFees: true,
           disableLargeFees: true,
         });
 
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
         t.getFee().should.equal(10050);
       });
       it('should build an eth txp correctly', () => {
-
         const toAddress = '0xa062a07a0a56beb2872b12f388f511d694626730';
         const key = Key.fromExtendedPrivateKey(masterPrivateKey);
-        const path = 'm/44\'/60\'/0\'';
-        const publicKeyRing = [{
-          xPubKey:
-            new Bitcore.HDPrivateKey(masterPrivateKey).deriveChild(path).toString(),
-        }];
+        const path = "m/44'/60'/0'";
+        const publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPrivateKey(masterPrivateKey).deriveChild(path).toString(),
+          },
+        ];
 
         const from = Utils.deriveAddress('P2PKH', publicKeyRing, 'm/0/0', 1, 'livenet', 'eth');
 
@@ -855,12 +927,13 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           version: 3,
           from: from.address,
           coin: 'eth',
-          outputs: [{
-            toAddress: toAddress,
-            amount: 3896000000000000,
-            gasLimit: 21000,
-            message: 'first output'
-          }
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 3896000000000000,
+              gasLimit: 21000,
+              message: 'first output',
+            },
           ],
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -869,19 +942,23 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           gasPrice: 20000000000,
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
-          amount: 3896000000000000
+          amount: 3896000000000000,
         };
         var t = Utils.buildTx(txp);
         const rawTxp = t.uncheckedSerialize();
-        rawTxp.should.deep.equal(['0xeb068504a817c80082520894a062a07a0a56beb2872b12f388f511d694626730870dd764300b800080018080']);
+        rawTxp.should.deep.equal([
+          '0xeb068504a817c80082520894a062a07a0a56beb2872b12f388f511d694626730870dd764300b800080018080',
+        ]);
       });
       it('should protect from creating excessive fee', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1, 2]);
         var txp = {
@@ -889,7 +966,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           toAddress: toAddress,
           amount: 1.5e8,
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -900,46 +977,53 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
         var x = Utils;
 
-        x.newBitcoreTransaction = () => {
+        x.newAstracoreTransaction = () => {
           return {
             from: sinon.stub(),
             to: sinon.stub(),
             change: sinon.stub(),
-            outputs: [{
-              satoshis: 1000,
-            }],
+            outputs: [
+              {
+                satoshis: 1000,
+              },
+            ],
             fee: sinon.stub(),
-          }
+          };
         };
 
         (() => {
           var t = x.buildTx(txp);
         }).should.throw('Illegal State');
 
-        x.newBitcoreTransaction = x;
+        x.newAstracoreTransaction = x;
       });
       it('should build a tx with multiple outputs', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
           inputs: utxos,
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -948,36 +1032,43 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2PKH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
         });
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
       });
       it('should build a tx with provided output scripts', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [0.001]);
         var txp = {
           inputs: utxos,
           type: 'external',
-          outputs: [{
-            "toAddress": "18433T2TSgajt9jWhcTBw4GoNREA6LpX3E",
-            "amount": 700,
-            "script": "512103ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff210314a96cd6f5a20826070173fe5b7e9797f21fc8ca4a55bcb2d2bde99f55dd352352ae"
-          }, {
-            "amount": 600,
-            "script": "76a9144d5bd54809f846dc6b1a14cbdd0ac87a3c66f76688ac"
-          }, {
-            "amount": 0,
-            "script": "6a1e43430102fa9213bc243af03857d0f9165e971153586d3915201201201210"
-          }],
+          outputs: [
+            {
+              toAddress: '18433T2TSgajt9jWhcTBw4GoNREA6LpX3E',
+              amount: 700,
+              script:
+                '512103ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff210314a96cd6f5a20826070173fe5b7e9797f21fc8ca4a55bcb2d2bde99f55dd352352ae',
+            },
+            {
+              amount: 600,
+              script: '76a9144d5bd54809f846dc6b1a14cbdd0ac87a3c66f76688ac',
+            },
+            {
+              amount: 0,
+              script: '6a1e43430102fa9213bc243af03857d0f9165e971153586d3915201201201210',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2, 3],
@@ -986,10 +1077,10 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2PKH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
         });
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
         t.outputs.length.should.equal(4);
         t.outputs[0].script.toHex().should.equal(txp.outputs[0].script);
         t.outputs[0].satoshis.should.equal(txp.outputs[0].amount);
@@ -997,32 +1088,38 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         t.outputs[1].satoshis.should.equal(txp.outputs[1].amount);
         t.outputs[2].script.toHex().should.equal(txp.outputs[2].script);
         t.outputs[2].satoshis.should.equal(txp.outputs[2].amount);
-        var changeScript = Bitcore.Script.fromAddress(txp.changeAddress.address).toHex();
+        var changeScript = Astracore.Script.fromAddress(txp.changeAddress.address).toHex();
         t.outputs[3].script.toHex().should.equal(changeScript);
       });
       it('should fail if provided output has no either toAddress or script', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [0.001]);
         var txp = {
           inputs: utxos,
           type: 'external',
-          outputs: [{
-            "amount": 700,
-          }, {
-            "amount": 600,
-            "script": "76a9144d5bd54809f846dc6b1a14cbdd0ac87a3c66f76688ac"
-          }, {
-            "amount": 0,
-            "script": "6a1e43430102fa9213bc243af03857d0f9165e971153586d3915201201201210"
-          }],
+          outputs: [
+            {
+              amount: 700,
+            },
+            {
+              amount: 600,
+              script: '76a9144d5bd54809f846dc6b1a14cbdd0ac87a3c66f76688ac',
+            },
+            {
+              amount: 0,
+              script: '6a1e43430102fa9213bc243af03857d0f9165e971153586d3915201201201210',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2, 3],
@@ -1034,44 +1131,50 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           var t = Utils.buildTx(txp);
         }).should.throw('Output should have either toAddress or script specified');
 
-        txp.outputs[0].toAddress = "18433T2TSgajt9jWhcTBw4GoNREA6LpX3E";
+        txp.outputs[0].toAddress = '18433T2TSgajt9jWhcTBw4GoNREA6LpX3E';
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
         });
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
 
         delete txp.outputs[0].toAddress;
-        txp.outputs[0].script = "512103ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff210314a96cd6f5a20826070173fe5b7e9797f21fc8ca4a55bcb2d2bde99f55dd352352ae";
+        txp.outputs[0].script =
+          '512103ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff210314a96cd6f5a20826070173fe5b7e9797f21fc8ca4a55bcb2d2bde99f55dd352352ae';
         t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
         });
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
       });
       it('should build a v3 tx proposal', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
           version: 3,
           inputs: utxos,
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1080,35 +1183,40 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2PKH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
         });
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
       });
 
       it('should build a v4 tx proposal', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
           version: 4,
           inputs: utxos,
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1117,10 +1225,10 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2PKH',
         };
         var t = Utils.buildTx(txp);
-        var bitcoreError = t.getSerializationError({
+        var astracoreError = t.getSerializationError({
           disableIsFullySigned: true,
         });
-        should.not.exist(bitcoreError);
+        should.not.exist(astracoreError);
       });
     });
 
@@ -1129,9 +1237,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP45']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP45']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2SH', publicKeyRing, 'm/2147483647/0/0', 1, [1000, 2000]);
         var txp = {
@@ -1141,7 +1251,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           toAddress: toAddress,
           amount: 1200,
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -1150,19 +1260,21 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           addressType: 'P2SH',
         };
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
-        var path = 'm/45\'';
+        var path = "m/45'";
         var signatures = key.sign(path, txp);
 
-        // This is a GOOD tests, since bitcore ONLY accept VALID signatures
+        // This is a GOOD tests, since astracore ONLY accept VALID signatures
         signatures.length.should.be.equal(utxos.length);
       });
       it('should sign BIP44 P2PKH correctly', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
@@ -1172,7 +1284,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           amount: 1200,
           signingMethod: 'ecdsa',
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1],
@@ -1180,37 +1292,42 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
         };
-        var path = 'm/44\'/1\'/0\'';
+        var path = "m/44'/1'/0'";
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
         var signatures = key.sign(path, txp);
 
-        // This is a GOOD test, since bitcore ONLY accept VALID signatures
+        // This is a GOOD test, since astracore ONLY accept VALID signatures
         signatures.length.should.be.equal(utxos.length);
       });
       it('should sign multiple-outputs proposal correctly', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
           inputs: utxos,
           coin: 'btc',
           signingMethod: 'ecdsa',
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1218,7 +1335,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
         };
-        var path = 'm/44\'/1\'/0\'';
+        var path = "m/44'/1'/0'";
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
         var signatures = key.sign(path, txp);
         signatures.length.should.be.equal(utxos.length);
@@ -1227,27 +1344,34 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [0.001]);
         var txp = {
           inputs: utxos,
           type: 'external',
           coin: 'btc',
-          outputs: [{
-            "amount": 700,
-            "script": "512103ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff210314a96cd6f5a20826070173fe5b7e9797f21fc8ca4a55bcb2d2bde99f55dd352352ae"
-          }, {
-            "amount": 600,
-            "script": "76a9144d5bd54809f846dc6b1a14cbdd0ac87a3c66f76688ac"
-          }, {
-            "amount": 0,
-            "script": "6a1e43430102fa9213bc243af03857d0f9165e971153586d3915201201201210"
-          }],
+          outputs: [
+            {
+              amount: 700,
+              script:
+                '512103ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff210314a96cd6f5a20826070173fe5b7e9797f21fc8ca4a55bcb2d2bde99f55dd352352ae',
+            },
+            {
+              amount: 600,
+              script: '76a9144d5bd54809f846dc6b1a14cbdd0ac87a3c66f76688ac',
+            },
+            {
+              amount: 0,
+              script: '6a1e43430102fa9213bc243af03857d0f9165e971153586d3915201201201210',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2, 3],
@@ -1255,7 +1379,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
         };
-        var path = 'm/44\'/1\'/0\'';
+        var path = "m/44'/1'/0'";
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
         var signatures = key.sign(path, txp);
         signatures.length.should.be.equal(utxos.length);
@@ -1264,26 +1388,31 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
           version: 3,
           coin: 'btc',
           inputs: utxos,
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1291,39 +1420,48 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
         };
-        var path = 'm/44\'/1\'/0\'';
+        var path = "m/44'/1'/0'";
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
         var signatures = key.sign(path, txp);
 
         signatures.length.should.be.equal(utxos.length);
-        signatures[0].should.equal('3045022100cfacaf8e4c9782f33f717eba3162d44cf9f34d9768a3bcd66b7052eb0868a0880220015e930e1f7d9a8b6b9e54d1450556bf4ba95c2cf8ef5c55d97de7df270cc6fd');
-        signatures[1].should.equal('3044022069cf6e5d8700ff117f754e4183e81690d99d6a6443e86c9589efa072ecb7d82c02204c254506ac38774a2176f9ef56cc239ef7867fbd24da2bef795128c75a063301');
+        signatures[0].should.equal(
+          '3045022100cfacaf8e4c9782f33f717eba3162d44cf9f34d9768a3bcd66b7052eb0868a0880220015e930e1f7d9a8b6b9e54d1450556bf4ba95c2cf8ef5c55d97de7df270cc6fd'
+        );
+        signatures[1].should.equal(
+          '3044022069cf6e5d8700ff117f754e4183e81690d99d6a6443e86c9589efa072ecb7d82c02204c254506ac38774a2176f9ef56cc239ef7867fbd24da2bef795128c75a063301'
+        );
       });
 
       it('should sign btc proposal correctly (tx V2)', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
           version: 4,
           coin: 'btc',
           inputs: utxos,
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1331,23 +1469,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
         };
-        var path = 'm/44\'/1\'/0\'';
+        var path = "m/44'/1'/0'";
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
         var signatures = key.sign(path, txp);
 
         signatures.length.should.be.equal(utxos.length);
-        signatures[0].should.equal('3045022100da83ffb02ce0c5c7f2b30d0eb2fd62d1177d282fff5ce7deb9d3a8fd6e002c9d022030f0f0b29dd1fb9b602c50e8916568aa0dd68054523989291decfdbf36d70299');
-        signatures[1].should.equal('3045022100951f980ad2fcd764a7824575e18aa4f28309b7160c353a0e3d239bff83050184022039c4ab5be5c40d19cd2c8bfcbf42a6262df851454a494ad78668be7d35519f05');
+        signatures[0].should.equal(
+          '3045022100da83ffb02ce0c5c7f2b30d0eb2fd62d1177d282fff5ce7deb9d3a8fd6e002c9d022030f0f0b29dd1fb9b602c50e8916568aa0dd68054523989291decfdbf36d70299'
+        );
+        signatures[1].should.equal(
+          '3045022100951f980ad2fcd764a7824575e18aa4f28309b7160c353a0e3d239bff83050184022039c4ab5be5c40d19cd2c8bfcbf42a6262df851454a494ad78668be7d35519f05'
+        );
       });
 
       it('should sign eth proposal correctly', () => {
         const toAddress = '0xa062a07a0a56beb2872b12f388f511d694626730';
         const key = Key.fromExtendedPrivateKey(masterPrivateKey);
-        const path = 'm/44\'/60\'/0\'';
-        const publicKeyRing = [{
-          xPubKey:
-            new Bitcore.HDPrivateKey(masterPrivateKey).deriveChild(path).toString(),
-        }];
+        const path = "m/44'/60'/0'";
+        const publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPrivateKey(masterPrivateKey).deriveChild(path).toString(),
+          },
+        ];
 
         const from = Utils.deriveAddress('P2PKH', publicKeyRing, 'm/0/0', 1, 'livenet', 'eth');
 
@@ -1355,12 +1498,13 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           version: 3,
           from: from.address,
           coin: 'eth',
-          outputs: [{
-            toAddress: toAddress,
-            amount: 3896000000000000,
-            gasLimit: 21000,
-            message: 'first output'
-          }
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 3896000000000000,
+              gasLimit: 21000,
+              message: 'first output',
+            },
           ],
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1369,7 +1513,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           gasPrice: 20000000000,
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
-          amount: 3896000000000000
+          amount: 3896000000000000,
         };
         const signatures = key.sign(path, txp);
         const expectedSignatures = [
@@ -1381,9 +1525,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
@@ -1391,17 +1537,20 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           coin: 'bch',
           signingMethod: 'ecdsa',
           inputs: utxos,
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1409,22 +1558,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
         };
-        var path = 'm/44\'/1\'/0\'';
+        var path = "m/44'/1'/0'";
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
         var signatures = key.sign(path, txp);
 
         signatures.length.should.be.equal(utxos.length);
-        signatures[0].should.equal('304402200aa70dfe99e25792c4a7edf773477100b6659f1ba906e551e6e5218ec32d273402202e31c575edb55b2da824e8cafd02b4769017ef63d3c888718cf6f0243c570d41');
-        signatures[1].should.equal('3045022100afde45e125f654453493b40d288cd66e8a011c66484509ae730a2686c9dff30502201bf34a6672c5848dd010b89ea1a5f040731acf78fec062f61b305e9ce32798a5');
+        signatures[0].should.equal(
+          '304402200aa70dfe99e25792c4a7edf773477100b6659f1ba906e551e6e5218ec32d273402202e31c575edb55b2da824e8cafd02b4769017ef63d3c888718cf6f0243c570d41'
+        );
+        signatures[1].should.equal(
+          '3045022100afde45e125f654453493b40d288cd66e8a011c66484509ae730a2686c9dff30502201bf34a6672c5848dd010b89ea1a5f040731acf78fec062f61b305e9ce32798a5'
+        );
       });
 
       it('should sign BCH proposal correctly (schnorr)', () => {
         var toAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
         var changeAddress = 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx';
 
-        var publicKeyRing = [{
-          xPubKey: new Bitcore.HDPublicKey(derivedPrivateKey['BIP44']),
-        }];
+        var publicKeyRing = [
+          {
+            xPubKey: new Astracore.HDPublicKey(derivedPrivateKey['BIP44']),
+          },
+        ];
 
         var utxos = helpers.generateUtxos('P2PKH', publicKeyRing, 'm/1/0', 1, [1000, 2000]);
         var txp = {
@@ -1432,17 +1587,20 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           coin: 'bch',
           signingMethod: 'schnorr',
           inputs: utxos,
-          outputs: [{
-            toAddress: toAddress,
-            amount: 800,
-            message: 'first output'
-          }, {
-            toAddress: toAddress,
-            amount: 900,
-            message: 'second output'
-          }],
+          outputs: [
+            {
+              toAddress: toAddress,
+              amount: 800,
+              message: 'first output',
+            },
+            {
+              toAddress: toAddress,
+              amount: 900,
+              message: 'second output',
+            },
+          ],
           changeAddress: {
-            address: changeAddress
+            address: changeAddress,
           },
           requiredSignatures: 1,
           outputOrder: [0, 1, 2],
@@ -1450,13 +1608,17 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           derivationStrategy: 'BIP44',
           addressType: 'P2PKH',
         };
-        var path = 'm/44\'/1\'/0\'';
+        var path = "m/44'/1'/0'";
         var key = Key.fromExtendedPrivateKey(masterPrivateKey);
         var signatures = key.sign(path, txp);
 
         signatures.length.should.be.equal(utxos.length);
-        signatures[0].should.equal('8127bbe9a3627fb307c3e919a2dd2dd69b22aaaa363abbda1d44a305fc8ec98ae082f3c3439c54c49ab20e6cc4ad0a077750583758de5a09b1d50d91befe30de');
-        signatures[1].should.equal('6b1494a6e8121215f40268f58b728585589c6933844b9bbcdae3fdd69be7c000d72c06143f554c5f9fd858a14e9d11cbb7c141901d8fc701c1f3c8c7328d6dc7');
+        signatures[0].should.equal(
+          '8127bbe9a3627fb307c3e919a2dd2dd69b22aaaa363abbda1d44a305fc8ec98ae082f3c3439c54c49ab20e6cc4ad0a077750583758de5a09b1d50d91befe30de'
+        );
+        signatures[1].should.equal(
+          '6b1494a6e8121215f40268f58b728585589c6933844b9bbcdae3fdd69be7c000d72c06143f554c5f9fd858a14e9d11cbb7c141901d8fc701c1f3c8c7328d6dc7'
+        );
       });
     });
   });
@@ -1466,7 +1628,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var i = 0;
       while (i++ < 100) {
         var walletId = Uuid.v4();
-        var walletPrivKey = new Bitcore.PrivateKey();
+        var walletPrivKey = new Astracore.PrivateKey();
         var network = i % 2 == 0 ? 'testnet' : 'livenet';
         var coin = i % 3 == 0 ? 'bch' : 'btc';
         var secret = Client._buildSecret(walletId, walletPrivKey, coin, network);
@@ -1475,7 +1637,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         result.walletPrivKey.toString().should.equal(walletPrivKey.toString());
         result.coin.should.equal(coin);
         result.network.should.equal(network);
-      };
+      }
     });
     it('should fail on invalid secret', () => {
       (() => {
@@ -1485,7 +1647,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
     it('should create secret and parse secret from string', () => {
       var walletId = Uuid.v4();
-      var walletPrivKey = new Bitcore.PrivateKey();
+      var walletPrivKey = new Astracore.PrivateKey();
       var coin = 'btc';
       var network = 'testnet';
       var secret = Client._buildSecret(walletId, walletPrivKey.toString(), coin, network);
@@ -1520,7 +1682,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           _.map(notifications, 'type').should.deep.equal(['NewCopayer', 'WalletComplete']);
           clock.tick(2000);
           notifications = [];
-
 
           clients[0]._fetchLatestNotifications(5, () => {
             notifications.length.should.equal(0);
@@ -1600,7 +1761,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.not.exist(err);
           status.wallet.name.should.equal('mywallet');
           done();
-        })
+        });
       });
     });
 
@@ -1625,7 +1786,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.not.exist(err);
           status.wallet.copayers[0].name.should.equal('pepe');
           done();
-        })
+        });
       });
     });
 
@@ -1639,7 +1800,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      var wpk = new Bitcore.PrivateKey();
+      var wpk = new Astracore.PrivateKey();
       var args = {
         name: 'mywallet',
         m: 1,
@@ -1657,9 +1818,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           name: 'pepe',
           xPubKey: c.xPubKey,
           requestPubKey: c.requestPubKey,
-          customData: Utils.encryptMessage(JSON.stringify({
-            walletPrivKey: wpk.toString(),
-          }), c.personalEncryptingKey),
+          customData: Utils.encryptMessage(
+            JSON.stringify({
+              walletPrivKey: wpk.toString(),
+            }),
+            c.personalEncryptingKey
+          ),
         };
         var hash = Utils.getCopayerHash(args.name, args.xPubKey, args.requestPubKey);
         args.copayerSignature = Utils.signMessage(hash, wpk);
@@ -1698,10 +1862,9 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           balance.availableAmount.should.equal(0);
           balance.lockedAmount.should.equal(0);
           done();
-        })
+        });
       });
     });
-
 
     it('should be able to complete wallet in copayer that joined later', (done) => {
       clients[0].fromString(
@@ -1721,13 +1884,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             clients[2].getBalance({}, (err, x) => {
               should.not.exist(err);
               done();
-            })
-          })
-        })
+            });
+          });
+        });
       });
     });
-
-
 
     it('should fire event when wallet is complete', (done) => {
       clients[0].fromString(
@@ -1776,8 +1937,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
 
-
-
     it('should fill wallet info in an incomplete wallet', (done) => {
       clients[0].fromString(
         k.createCredentials(null, {
@@ -1810,8 +1969,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
 
-
-
     it('should return wallet on successful join', (done) => {
       clients[0].fromString(
         k.createCredentials(null, {
@@ -1822,36 +1979,40 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mywallet', 'creator', 2, 2, {
-        network: 'testnet'
-      }, (err, secret) => {
-        should.not.exist(err);
-        let k2 = Key.create();
-        clients[1].fromString(
-          k2.createCredentials(null, {
-            coin: 'btc',
-            network: 'testnet',
-            account: 5,
-            n: 2,
-          })
-        );
-        clients[0].credentials.rootPath.should.equal('m/48\'/1\'/0\'');
-        clients[1].credentials.rootPath.should.equal('m/48\'/1\'/5\'');
-
-        clients[1].joinWallet(secret, 'guest', {}, (err, wallet) => {
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        2,
+        2,
+        {
+          network: 'testnet',
+        },
+        (err, secret) => {
           should.not.exist(err);
-          wallet.name.should.equal('mywallet');
-          wallet.copayers[0].name.should.equal('creator');
-          wallet.copayers[1].name.should.equal('guest');
-          done();
-        });
-      });
+          let k2 = Key.create();
+          clients[1].fromString(
+            k2.createCredentials(null, {
+              coin: 'btc',
+              network: 'testnet',
+              account: 5,
+              n: 2,
+            })
+          );
+          clients[0].credentials.rootPath.should.equal("m/48'/1'/0'");
+          clients[1].credentials.rootPath.should.equal("m/48'/1'/5'");
+
+          clients[1].joinWallet(secret, 'guest', {}, (err, wallet) => {
+            should.not.exist(err);
+            wallet.name.should.equal('mywallet');
+            wallet.copayers[0].name.should.equal('creator');
+            wallet.copayers[1].name.should.equal('guest');
+            done();
+          });
+        }
+      );
     });
 
-
-
     it('should not allow to join wallet on bogus device', (done) => {
-
       clients[0].fromString(
         k.createCredentials(null, {
           coin: 'btc',
@@ -1861,26 +2022,33 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mywallet', 'creator', 2, 2, {
-        network: 'testnet'
-      }, (err, secret) => {
-        should.not.exist(err);
-        let k2 = Key.create();
-        clients[1].fromString(
-          k2.createCredentials(null, {
-            coin: 'btc',
-            network: 'testnet',
-            account: 5,
-            n: 2,
-          })
-        );
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        2,
+        2,
+        {
+          network: 'testnet',
+        },
+        (err, secret) => {
+          should.not.exist(err);
+          let k2 = Key.create();
+          clients[1].fromString(
+            k2.createCredentials(null, {
+              coin: 'btc',
+              network: 'testnet',
+              account: 5,
+              n: 2,
+            })
+          );
 
-        clients[1].keyDerivationOk = false;
-        clients[1].joinWallet(secret, 'guest', {}, (err, wallet) => {
-          should.exist(err);
-          done();
-        });
-      });
+          clients[1].keyDerivationOk = false;
+          clients[1].joinWallet(secret, 'guest', {}, (err, wallet) => {
+            should.exist(err);
+            done();
+          });
+        }
+      );
     });
 
     it('should not allow to join a full wallet ', (done) => {
@@ -1926,10 +2094,15 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       clients[0].joinWallet('dummy', 'copayer', {}, (err, result) => {
         err.message.should.contain('Invalid secret');
         // Right length, invalid char for base 58
-        clients[0].joinWallet('DsZbqNQQ9LrTKU8EknR7gFKyCQMPg2UUHNPZ1BzM5EbJwjRZaUNBfNtdWLluuFc0f7f7sTCkh7T', 'copayer', {}, (err, result) => {
-          err.message.should.contain('Invalid secret');
-          done();
-        });
+        clients[0].joinWallet(
+          'DsZbqNQQ9LrTKU8EknR7gFKyCQMPg2UUHNPZ1BzM5EbJwjRZaUNBfNtdWLluuFc0f7f7sTCkh7T',
+          'copayer',
+          {},
+          (err, result) => {
+            err.message.should.contain('Invalid secret');
+            done();
+          }
+        );
       });
     });
 
@@ -1956,17 +2129,23 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var openWalletStub = sinon.stub(clients[1], 'openWallet').yields();
 
       helpers.createAndJoinWallet(clients, keys, 2, 3, {}, () => {
-        helpers.tamperResponse([clients[0], clients[1]], 'get', '/v1/wallets/', {}, (status) => {
-          status.wallet.copayers[0].xPubKey = status.wallet.copayers[1].xPubKey;
-        }, () => {
-          openWalletStub.restore();
+        helpers.tamperResponse(
+          [clients[0], clients[1]],
+          'get',
+          '/v1/wallets/',
+          {},
+          (status) => {
+            status.wallet.copayers[0].xPubKey = status.wallet.copayers[1].xPubKey;
+          },
+          () => {
+            openWalletStub.restore();
 
-          clients[1].openWallet((err, x) => {
-
-            err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-            done();
-          });
-        });
+            clients[1].openWallet((err, x) => {
+              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+              done();
+            });
+          }
+        );
       });
     });
 
@@ -1975,15 +2154,22 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var openWalletStub = sinon.stub(clients[1], 'openWallet').yields();
 
       helpers.createAndJoinWallet(clients, keys, 2, 3, {}, () => {
-        helpers.tamperResponse([clients[0], clients[1]], 'get', '/v1/wallets/', {}, (status) => {
-          delete status.wallet.copayers[1].xPubKey;
-        }, () => {
-          openWalletStub.restore();
-          clients[1].openWallet((err, x) => {
-            err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-            done();
-          });
-        });
+        helpers.tamperResponse(
+          [clients[0], clients[1]],
+          'get',
+          '/v1/wallets/',
+          {},
+          (status) => {
+            delete status.wallet.copayers[1].xPubKey;
+          },
+          () => {
+            openWalletStub.restore();
+            clients[1].openWallet((err, x) => {
+              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+              done();
+            });
+          }
+        );
       });
     });
 
@@ -1992,21 +2178,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var openWalletStub = sinon.stub(clients[1], 'openWallet').yields();
 
       helpers.createAndJoinWallet(clients, keys, 2, 3, {}, () => {
-        helpers.tamperResponse([clients[0], clients[1]], 'get', '/v1/wallets/', {}, (status) => {
-          // Replace caller's pubkey
-          status.wallet.copayers[1].xPubKey = (new Bitcore.HDPrivateKey()).publicKey;
-          // Add a correct signature
-          status.wallet.copayers[1].xPubKeySignature = Utils.signMessage(
-            status.wallet.copayers[1].xPubKey.toString(),
-            clients[0].credentials.walletPrivKey
-          );
-        }, () => {
-          openWalletStub.restore();
-          clients[1].openWallet((err, x) => {
-            err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-            done();
-          });
-        });
+        helpers.tamperResponse(
+          [clients[0], clients[1]],
+          'get',
+          '/v1/wallets/',
+          {},
+          (status) => {
+            // Replace caller's pubkey
+            status.wallet.copayers[1].xPubKey = new Astracore.HDPrivateKey().publicKey;
+            // Add a correct signature
+            status.wallet.copayers[1].xPubKeySignature = Utils.signMessage(
+              status.wallet.copayers[1].xPubKey.toString(),
+              clients[0].credentials.walletPrivKey
+            );
+          },
+          () => {
+            openWalletStub.restore();
+            clients[1].openWallet((err, x) => {
+              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+              done();
+            });
+          }
+        );
       });
     });
 
@@ -2031,15 +2224,20 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             n: 2,
           })
         );
-        clients[1].joinWallet(secret, 'dummy', {
-          dryRun: true
-        }, (err, wallet) => {
-          should.not.exist(err);
-          should.exist(wallet);
-          wallet.status.should.equal('pending');
-          wallet.copayers.length.should.equal(1);
-          done();
-        });
+        clients[1].joinWallet(
+          secret,
+          'dummy',
+          {
+            dryRun: true,
+          },
+          (err, wallet) => {
+            should.not.exist(err);
+            should.exist(wallet);
+            wallet.status.should.equal('pending');
+            wallet.copayers.length.should.equal(1);
+            done();
+          }
+        );
       });
     });
 
@@ -2053,21 +2251,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mywallet', 'creator', 1, 2, {
-        network: 'testnet'
-      }, (err, secret) => {
-        should.not.exist(err);
-        should.exist(secret);
-
-        clients[0].getStatus({}, (err, status) => {
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        2,
+        {
+          network: 'testnet',
+        },
+        (err, secret) => {
           should.not.exist(err);
-          should.exist(status);
-          status.wallet.status.should.equal('pending');
-          should.exist(status.wallet.secret);
-          status.wallet.secret.should.equal(secret);
-          done();
-        });
-      });
+          should.exist(secret);
+
+          clients[0].getStatus({}, (err, status) => {
+            should.not.exist(err);
+            should.exist(status);
+            status.wallet.status.should.equal('pending');
+            should.exist(status.wallet.secret);
+            status.wallet.secret.should.equal(secret);
+            done();
+          });
+        }
+      );
     });
 
     it('should return status using v2 version', (done) => {
@@ -2080,17 +2285,24 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mywallet', 'creator', 1, 1, {
-        network: 'testnet'
-      }, (err, secret) => {
-        should.not.exist(err);
-        clients[0].getStatus({}, (err, status) => {
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          network: 'testnet',
+        },
+        (err, secret) => {
           should.not.exist(err);
-          should.not.exist(status.wallet.publicKeyRing);
-          status.wallet.status.should.equal('complete');
-          done();
-        });
-      });
+          clients[0].getStatus({}, (err, status) => {
+            should.not.exist(err);
+            should.not.exist(status.wallet.publicKeyRing);
+            status.wallet.status.should.equal('complete');
+            done();
+          });
+        }
+      );
     });
 
     it('should return extended status using v2 version', (done) => {
@@ -2103,19 +2315,29 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mywallet', 'creator', 1, 1, {
-        network: 'testnet'
-      }, (err, secret) => {
-        should.not.exist(err);
-        clients[0].getStatus({
-          includeExtendedInfo: true
-        }, (err, status) => {
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          network: 'testnet',
+        },
+        (err, secret) => {
           should.not.exist(err);
-          status.wallet.publicKeyRing.length.should.equal(1);
-          status.wallet.status.should.equal('complete');
-          done();
-        });
-      });
+          clients[0].getStatus(
+            {
+              includeExtendedInfo: true,
+            },
+            (err, status) => {
+              should.not.exist(err);
+              status.wallet.publicKeyRing.length.should.equal(1);
+              status.wallet.status.should.equal('complete');
+              done();
+            }
+          );
+        }
+      );
     });
 
     it('should store walletPrivKey', (done) => {
@@ -2128,24 +2350,33 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mywallet', 'creator', 1, 1, {
-        network: 'testnet'
-      }, (err) => {
-
-        var key = clients[0].credentials.walletPrivKey;
-        should.not.exist(err);
-        clients[0].getStatus({
-          includeExtendedInfo: true
-        }, (err, status) => {
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          network: 'testnet',
+        },
+        (err) => {
+          var key = clients[0].credentials.walletPrivKey;
           should.not.exist(err);
-          status.wallet.publicKeyRing.length.should.equal(1);
-          status.wallet.status.should.equal('complete');
-          var key2 = status.customData.walletPrivKey;
+          clients[0].getStatus(
+            {
+              includeExtendedInfo: true,
+            },
+            (err, status) => {
+              should.not.exist(err);
+              status.wallet.publicKeyRing.length.should.equal(1);
+              status.wallet.status.should.equal('complete');
+              var key2 = status.customData.walletPrivKey;
 
-          clients[0].credentials.walletPrivKey.should.be.equal(key2);
-          done();
-        });
-      });
+              clients[0].credentials.walletPrivKey.should.be.equal(key2);
+              done();
+            }
+          );
+        }
+      );
     });
 
     it('should set walletPrivKey from BWS', (done) => {
@@ -2158,29 +2389,42 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mywallet', 'creator', 1, 1, {
-        network: 'testnet'
-      }, (err) => {
-
-        var wkey = clients[0].credentials.walletPrivKey;
-        var skey = clients[0].credentials.sharedEncryptingKey;
-        delete clients[0].credentials.walletPrivKey;
-        delete clients[0].credentials.sharedEncryptingKey;
-        should.not.exist(err);
-        clients[0].getStatus({
-          includeExtendedInfo: true
-        }, (err, status) => {
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          network: 'testnet',
+        },
+        (err) => {
+          var wkey = clients[0].credentials.walletPrivKey;
+          var skey = clients[0].credentials.sharedEncryptingKey;
+          delete clients[0].credentials.walletPrivKey;
+          delete clients[0].credentials.sharedEncryptingKey;
           should.not.exist(err);
-          clients[0].credentials.walletPrivKey.should.equal(wkey);
-          clients[0].credentials.sharedEncryptingKey.should.equal(skey);
-          done();
-        });
-      });
+          clients[0].getStatus(
+            {
+              includeExtendedInfo: true,
+            },
+            (err, status) => {
+              should.not.exist(err);
+              clients[0].credentials.walletPrivKey.should.equal(wkey);
+              clients[0].credentials.sharedEncryptingKey.should.equal(skey);
+              done();
+            }
+          );
+        }
+      );
     });
 
     it('should create a 1-1 wallet with given mnemonic', (done) => {
-      var c = Key.fromMnemonic('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
-      c.xPrivKey.should.equal('xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu');
+      var c = Key.fromMnemonic(
+        'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+      );
+      c.xPrivKey.should.equal(
+        'xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu'
+      );
       clients[0].fromString(
         c.createCredentials(null, {
           coin: 'btc',
@@ -2189,24 +2433,36 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           n: 1,
         })
       );
-      clients[0].createWallet('mywallet', 'creator', 1, 1, {
-        network: 'livenet',
-        derivationStrategy: 'BIP48',
-      },
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          network: 'livenet',
+          derivationStrategy: 'BIP48',
+        },
         (err) => {
           should.not.exist(err);
           clients[0].openWallet((err) => {
             should.not.exist(err);
-            clients[0].credentials.xPubKey.should.equal('xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj')
+            clients[0].credentials.xPubKey.should.equal(
+              'xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj'
+            );
             should.not.exist(clients[0].credentials.xPrivKey);
             done();
           });
-        });
+        }
+      );
     });
 
     it('should create a 2-3 wallet with given mnemonic', (done) => {
-      var c = Key.fromMnemonic('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
-      c.xPrivKey.should.equal('xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu');
+      var c = Key.fromMnemonic(
+        'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+      );
+      c.xPrivKey.should.equal(
+        'xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu'
+      );
       clients[0].fromString(
         c.createCredentials(null, {
           coin: 'btc',
@@ -2215,18 +2471,26 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           n: 3,
         })
       );
-      clients[0].createWallet('mywallet', 'creator', 2, 3, {
-        network: 'livenet'
-      },
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        2,
+        3,
+        {
+          network: 'livenet',
+        },
         (err, secret) => {
           should.not.exist(err);
           should.exist(secret);
           clients[0].openWallet((err) => {
             should.not.exist(err);
-            clients[0].credentials.xPubKey.should.equal('xpub6CKZtUaK1YHpQbg6CLaGRmsMKLQB1iKzsvmxtyHD6X7gzLqCB2VNZYd1XCxrccQnE8hhDxtYbR1Sakkvisy2J4CcTxWeeGjmkasCoNS9vZm')
+            clients[0].credentials.xPubKey.should.equal(
+              'xpub6CKZtUaK1YHpQbg6CLaGRmsMKLQB1iKzsvmxtyHD6X7gzLqCB2VNZYd1XCxrccQnE8hhDxtYbR1Sakkvisy2J4CcTxWeeGjmkasCoNS9vZm'
+            );
             done();
           });
-        });
+        }
+      );
     });
 
     it('should create Bitcoin Cash wallet', (done) => {
@@ -2240,20 +2504,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mycashwallet', 'pepe', 1, 1, {
-        coin: 'bch'
-      }, (err, secret) => {
-        should.not.exist(err);
-        clients[0].getStatus({}, (err, status) => {
+      clients[0].createWallet(
+        'mycashwallet',
+        'pepe',
+        1,
+        1,
+        {
+          coin: 'bch',
+        },
+        (err, secret) => {
           should.not.exist(err);
-          status.wallet.coin.should.equal('bch');
-          done();
-        })
-      });
+          clients[0].getStatus({}, (err, status) => {
+            should.not.exist(err);
+            status.wallet.coin.should.equal('bch');
+            done();
+          });
+        }
+      );
     });
 
     it('should create a BCH  address correctly', (done) => {
-      var xPriv = 'xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu';
+      var xPriv =
+        'xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu';
       let k = Key.fromExtendedPrivateKey(xPriv, {
         useLegacyCoinType: true,
       });
@@ -2266,67 +2538,102 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         })
       );
 
-      clients[0].createWallet('mycashwallet', 'pepe', 1, 1, {
-        coin: 'bch',
-      }, (err, secret) => {
-        should.not.exist(err);
-
-        clients[0].createAddress((err, x) => {
+      clients[0].createWallet(
+        'mycashwallet',
+        'pepe',
+        1,
+        1,
+        {
+          coin: 'bch',
+        },
+        (err, secret) => {
           should.not.exist(err);
-          x.coin.should.equal('bch');
-          x.network.should.equal('livenet');
-          x.address.should.equal('qrvcdmgpk73zyfd8pmdl9wnuld36zh9n4gms8s0u59');
-          done();
-        })
-      });
+
+          clients[0].createAddress((err, x) => {
+            should.not.exist(err);
+            x.coin.should.equal('bch');
+            x.network.should.equal('livenet');
+            x.address.should.equal('qrvcdmgpk73zyfd8pmdl9wnuld36zh9n4gms8s0u59');
+            done();
+          });
+        }
+      );
     });
 
     it('should create a P2WPKH wallet and derive a valid Segwit address', (done) => {
-      helpers.createAndJoinWallet(clients, keys, 1, 1, { network: 'livenet', addressType: 'P2WPKH', useNativeSegwit: true }, (w) => {
-        clients[0].createAddress((err, client) => {
-          should.not.exist(err);
-          client.address.should.include('bc1');
-          client.address.length.should.equal(42);
-          client.type.should.equal('P2WPKH');
-          done();
-        });
-      });
+      helpers.createAndJoinWallet(
+        clients,
+        keys,
+        1,
+        1,
+        { network: 'livenet', addressType: 'P2WPKH', useNativeSegwit: true },
+        (w) => {
+          clients[0].createAddress((err, client) => {
+            should.not.exist(err);
+            client.address.should.include('bc1');
+            client.address.length.should.equal(42);
+            client.type.should.equal('P2WPKH');
+            done();
+          });
+        }
+      );
     });
 
     it('should create a P2WPKH testnet wallet and derive a valid Segwit testnet address', (done) => {
-      helpers.createAndJoinWallet(clients, keys, 1, 1, { network: 'testnet', addressType: 'P2WPKH', useNativeSegwit: true }, (w) => {
-        clients[0].createAddress((err, client) => {
-          should.not.exist(err);
-          client.address.should.include('tb1');
-          client.address.length.should.equal(42);
-          client.type.should.equal('P2WPKH');
-          done();
-        });
-      });
+      helpers.createAndJoinWallet(
+        clients,
+        keys,
+        1,
+        1,
+        { network: 'testnet', addressType: 'P2WPKH', useNativeSegwit: true },
+        (w) => {
+          clients[0].createAddress((err, client) => {
+            should.not.exist(err);
+            client.address.should.include('tb1');
+            client.address.length.should.equal(42);
+            client.type.should.equal('P2WPKH');
+            done();
+          });
+        }
+      );
     });
 
     it('should create a P2WSH wallet and derive a valid Segwit address', (done) => {
-      helpers.createAndJoinWallet(clients, keys, 1, 2, { network: 'livenet', addressType: 'P2WSH', useNativeSegwit: true }, (w) => {
-        clients[0].createAddress((err, client) => {
-          should.not.exist(err);
-          client.address.should.include('bc1');
-          client.address.length.should.equal(62);
-          client.type.should.equal('P2WSH');
-          done();
-        });
-      });
+      helpers.createAndJoinWallet(
+        clients,
+        keys,
+        1,
+        2,
+        { network: 'livenet', addressType: 'P2WSH', useNativeSegwit: true },
+        (w) => {
+          clients[0].createAddress((err, client) => {
+            should.not.exist(err);
+            client.address.should.include('bc1');
+            client.address.length.should.equal(62);
+            client.type.should.equal('P2WSH');
+            done();
+          });
+        }
+      );
     });
 
     it('should create a P2WSH testnet wallet and derive a valid Segwit testnet address', (done) => {
-      helpers.createAndJoinWallet(clients, keys, 1, 2, { network: 'testnet', addressType: 'P2WSH', useNativeSegwit: true }, (w) => {
-        clients[0].createAddress((err, client) => {
-          should.not.exist(err);
-          client.address.should.include('tb1');
-          client.address.length.should.equal(62);
-          client.type.should.equal('P2WSH');
-          done();
-        });
-      });
+      helpers.createAndJoinWallet(
+        clients,
+        keys,
+        1,
+        2,
+        { network: 'testnet', addressType: 'P2WSH', useNativeSegwit: true },
+        (w) => {
+          clients[0].createAddress((err, client) => {
+            should.not.exist(err);
+            client.address.should.include('tb1');
+            client.address.length.should.equal(62);
+            client.type.should.equal('P2WSH');
+            done();
+          });
+        }
+      );
     });
   });
 
@@ -2344,13 +2651,16 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
     it('Should return all main addresses', (done) => {
-      clients[0].getMainAddresses({
-        doNotVerify: true
-      }, (err, addr) => {
-        should.not.exist(err);
-        addr.length.should.equal(2);
-        done();
-      });
+      clients[0].getMainAddresses(
+        {
+          doNotVerify: true,
+        },
+        (err, addr) => {
+          should.not.exist(err);
+          addr.length.should.equal(2);
+          done();
+        }
+      );
     });
     it('Should return only main addresses when change addresses exist', (done) => {
       var opts = {
@@ -2392,24 +2702,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
     it('Should return UTXOs for specific addresses', (done) => {
-      async.map(_.range(3), (i, next) => {
-        clients[0].createAddress((err, x) => {
-          should.not.exist(err);
-          should.exist(x.address);
-          blockchainExplorerMock.setUtxo(x, 1, 1);
-          next(null, x.address);
-        });
-      }, (err, addresses) => {
-        var opts = {
-          addresses: _.take(addresses, 1),
-        };
-        clients[0].getUtxos(opts, (err, utxos) => {
-          should.not.exist(err);
-          utxos.length.should.equal(1);
-          _.sumBy(utxos, 'satoshis').should.equal(1 * 1e8);
-          done();
-        });
-      });
+      async.map(
+        _.range(3),
+        (i, next) => {
+          clients[0].createAddress((err, x) => {
+            should.not.exist(err);
+            should.exist(x.address);
+            blockchainExplorerMock.setUtxo(x, 1, 1);
+            next(null, x.address);
+          });
+        },
+        (err, addresses) => {
+          var opts = {
+            addresses: _.take(addresses, 1),
+          };
+          clients[0].getUtxos(opts, (err, utxos) => {
+            should.not.exist(err);
+            utxos.length.should.equal(1);
+            _.sumBy(utxos, 'satoshis').should.equal(1 * 1e8);
+            done();
+          });
+        }
+      );
     });
   });
 
@@ -2465,17 +2779,20 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         clients[0].getPreferences((err, preferences) => {
           should.not.exist(err);
           preferences.should.be.empty;
-          clients[0].savePreferences({
-            email: 'dummy@dummy.com'
-          }, (err) => {
-            should.not.exist(err);
-            clients[0].getPreferences((err, preferences) => {
+          clients[0].savePreferences(
+            {
+              email: 'dummy@dummy.com',
+            },
+            (err) => {
               should.not.exist(err);
-              should.exist(preferences);
-              preferences.email.should.equal('dummy@dummy.com');
-              done();
-            });
-          });
+              clients[0].getPreferences((err, preferences) => {
+                should.not.exist(err);
+                should.exist(preferences);
+                preferences.email.should.equal('dummy@dummy.com');
+                done();
+              });
+            }
+          );
         });
       });
     });
@@ -2485,16 +2802,19 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
     it('should get fiat exchange rate', (done) => {
       var now = Date.now();
       helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
-        clients[0].getFiatRate({
-          code: 'USD',
-          ts: now,
-        }, (err, res) => {
-          should.not.exist(err);
-          should.exist(res);
-          res.ts.should.equal(now);
-          should.not.exist(res.rate);
-          done();
-        });
+        clients[0].getFiatRate(
+          {
+            code: 'USD',
+            ts: now,
+          },
+          (err, res) => {
+            should.not.exist(err);
+            should.exist(res);
+            res.ts.should.equal(now);
+            should.not.exist(res.rate);
+            done();
+          }
+        );
       });
     });
   });
@@ -2531,14 +2851,17 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         clients[0].request.doRequest = sinon.stub().yields(null, {
           statusCode: 200,
         });
-        clients[0].txConfirmationSubscribe({
-          txid: '123'
-        }, (err, res) => {
-          should.not.exist(err);
-          should.exist(res);
-          res.statusCode.should.be.equal(200);
-          done();
-        });
+        clients[0].txConfirmationSubscribe(
+          {
+            txid: '123',
+          },
+          (err, res) => {
+            should.not.exist(err);
+            should.exist(res);
+            res.statusCode.should.be.equal(200);
+            done();
+          }
+        );
       });
     });
 
@@ -2577,7 +2900,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var opts = {
         feeLevel: 'priority',
         excludeUnconfirmedUtxos: false,
-        returnInputs: true
+        returnInputs: true,
       };
       clients[0].getSendMaxInfo(opts, (err, result) => {
         should.not.exist(err);
@@ -2595,7 +2918,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var opts = {
         feePerKb: 200,
         excludeUnconfirmedUtxos: true,
-        returnInputs: true
+        returnInputs: true,
       };
       clients[0].getSendMaxInfo(opts, (err, result) => {
         should.not.exist(err);
@@ -2607,7 +2930,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var opts = {
         feePerKb: 200,
         excludeUnconfirmedUtxos: false,
-        returnInputs: true
+        returnInputs: true,
       };
       clients[0].getSendMaxInfo(opts, (err, result) => {
         should.not.exist(err);
@@ -2619,7 +2942,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var opts = {
         feePerKb: 200,
         excludeUnconfirmedUtxos: true,
-        returnInputs: false
+        returnInputs: false,
       };
       clients[0].getSendMaxInfo(opts, (err, result) => {
         should.not.exist(err);
@@ -2631,7 +2954,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var opts = {
         feePerKb: 200,
         excludeUnconfirmedUtxos: true,
-        returnInputs: true
+        returnInputs: true,
       };
       clients[0].getSendMaxInfo(opts, (err, result) => {
         should.not.exist(err);
@@ -2710,29 +3033,43 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
     });
     it('should detect fake addresses', (done) => {
       helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
-        helpers.tamperResponse(clients[0], 'post', '/v3/addresses/', {}, (address) => {
-          address.address = '2N86pNEpREGpwZyHVC5vrNUCbF9nM1Geh4K';
-        }, () => {
-          clients[0].createAddress((err, x0) => {
-            err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-            done();
-          });
-        });
+        helpers.tamperResponse(
+          clients[0],
+          'post',
+          '/v3/addresses/',
+          {},
+          (address) => {
+            address.address = '2N86pNEpREGpwZyHVC5vrNUCbF9nM1Geh4K';
+          },
+          () => {
+            clients[0].createAddress((err, x0) => {
+              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+              done();
+            });
+          }
+        );
       });
     });
     it('should detect fake public keys', (done) => {
       helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
-        helpers.tamperResponse(clients[0], 'post', '/v3/addresses/', {}, (address) => {
-          address.publicKeys = [
-            '0322defe0c3eb9fcd8bc01878e6dbca7a6846880908d214b50a752445040cc5c54',
-            '02bf3aadc17131ca8144829fa1883c1ac0a8839067af4bca47a90ccae63d0d8037'
-          ];
-        }, () => {
-          clients[0].createAddress((err, x0) => {
-            err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-            done();
-          });
-        });
+        helpers.tamperResponse(
+          clients[0],
+          'post',
+          '/v3/addresses/',
+          {},
+          (address) => {
+            address.publicKeys = [
+              '0322defe0c3eb9fcd8bc01878e6dbca7a6846880908d214b50a752445040cc5c54',
+              '02bf3aadc17131ca8144829fa1883c1ac0a8839067af4bca47a90ccae63d0d8037',
+            ];
+          },
+          () => {
+            clients[0].createAddress((err, x0) => {
+              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+              done();
+            });
+          }
+        );
       });
     });
     it('should be able to derive 25 addresses', function (done) {
@@ -2740,15 +3077,18 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var num = 25;
       helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
         var create = (callback) => {
-          clients[0].createAddress({
-            ignoreMaxGap: true
-          }, (err, x) => {
-            if (err) console.log(err);
-            should.not.exist(err);
-            should.exist(x.address);
-            callback(err, x);
-          });
-        }
+          clients[0].createAddress(
+            {
+              ignoreMaxGap: true,
+            },
+            (err, x) => {
+              if (err) console.log(err);
+              should.not.exist(err);
+              should.exist(x.address);
+              callback(err, x);
+            }
+          );
+        };
 
         var tasks = [];
         for (var i = 0; i < num; i++) {
@@ -2765,8 +3105,8 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
     describe('ETH testnet address creation', () => {
       it('should be able to create address in 1-of-1 wallet', (done) => {
-
-        var xPriv = 'xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu';
+        var xPriv =
+          'xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu';
         let k = Key.fromExtendedPrivateKey(xPriv, {});
 
         clients[0].fromString(
@@ -2777,35 +3117,49 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             n: 1,
           })
         );
-        clients[0].createWallet('mywallet', 'creator', 1, 1, {
-          network: 'livenet',
-          coin: 'eth',
-        }, (err) => {
-          should.not.exist(err);
-          clients[0].createAddress((err, x0) => {
-            clients[1].fromString(
-              k.createCredentials(null, {
-                coin: 'eth',
-                network: 'testnet',
-                account: 0,
-                n: 1,
-              })
-            );
+        clients[0].createWallet(
+          'mywallet',
+          'creator',
+          1,
+          1,
+          {
+            network: 'livenet',
+            coin: 'eth',
+          },
+          (err) => {
+            should.not.exist(err);
+            clients[0].createAddress((err, x0) => {
+              clients[1].fromString(
+                k.createCredentials(null, {
+                  coin: 'eth',
+                  network: 'testnet',
+                  account: 0,
+                  n: 1,
+                })
+              );
 
-            clients[1].createWallet('mywallet', 'creator', 1, 1, {
-              network: 'testnet',
-              coin: 'eth',
-            }, (err, ) => {
-              should.not.exist(err);
-              clients[1].createAddress((err, x1) => {
-                clients[0].credentials.copayerId.should.not.equal(clients[1].credentials.copayerId);
-                // in ETH, same account address for livenet and testnet should match
-                x1.address.should.equal(x0.address);
-                done();
-              });
+              clients[1].createWallet(
+                'mywallet',
+                'creator',
+                1,
+                1,
+                {
+                  network: 'testnet',
+                  coin: 'eth',
+                },
+                (err) => {
+                  should.not.exist(err);
+                  clients[1].createAddress((err, x1) => {
+                    clients[0].credentials.copayerId.should.not.equal(clients[1].credentials.copayerId);
+                    // in ETH, same account address for livenet and testnet should match
+                    x1.address.should.equal(x0.address);
+                    done();
+                  });
+                }
+              );
             });
-          });
-        });
+          }
+        );
       });
     });
   });
@@ -2835,13 +3189,16 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         should.not.exist(err);
         notifications.length.should.equal(3);
         _.map(notifications, 'type').should.deep.equal(['NewCopayer', 'WalletComplete', 'NewAddress']);
-        clients[0].getNotifications({
-          lastNotificationId: _.last(notifications).id
-        }, (err, notifications) => {
-          should.not.exist(err);
-          notifications.length.should.equal(0, 'should only return unread notifications');
-          done();
-        });
+        clients[0].getNotifications(
+          {
+            lastNotificationId: _.last(notifications).id,
+          },
+          (err, notifications) => {
+            should.not.exist(err);
+            notifications.length.should.equal(0, 'should only return unread notifications');
+            done();
+          }
+        );
       });
     });
     it('should not receive old notifications', (done) => {
@@ -2857,14 +3214,23 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         should.not.exist(err);
         notifications.length.should.equal(3);
         _.map(notifications, 'type').should.deep.equal(['NewCopayer', 'WalletComplete', 'NewAddress']);
-        clients[0].getNotifications({
-          includeOwn: true,
-        }, (err, notifications) => {
-          should.not.exist(err);
-          notifications.length.should.equal(5);
-          _.map(notifications, 'type').should.deep.equal(['NewCopayer', 'NewCopayer', 'WalletComplete', 'NewAddress', 'NewAddress']);
-          done();
-        });
+        clients[0].getNotifications(
+          {
+            includeOwn: true,
+          },
+          (err, notifications) => {
+            should.not.exist(err);
+            notifications.length.should.equal(5);
+            _.map(notifications, 'type').should.deep.equal([
+              'NewCopayer',
+              'NewCopayer',
+              'WalletComplete',
+              'NewAddress',
+              'NewAddress',
+            ]);
+            done();
+          }
+        );
       });
     });
   });
@@ -2890,21 +3256,24 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
       var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
       var opts = {
-        outputs: [{
-          amount: 1e8,
-          toAddress: toAddress,
-          message: 'world',
-        }, {
-          amount: 2e8,
-          toAddress: toAddress,
-        }],
+        outputs: [
+          {
+            amount: 1e8,
+            toAddress: toAddress,
+            message: 'world',
+          },
+          {
+            amount: 2e8,
+            toAddress: toAddress,
+          },
+        ],
         message: 'hello',
         customData: {
           someObj: {
-            x: 1
+            x: 1,
           },
-          someStr: "str"
-        }
+          someStr: 'str',
+        },
       };
       clients[0].createTxProposal(opts, (err, txp) => {
         should.not.exist(err);
@@ -2928,29 +3297,32 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.not.exist(err);
           txps.should.be.empty;
 
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-            clients[0].getTxProposals({}, (err, txps) => {
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
               should.not.exist(err);
-              txps.length.should.equal(1);
-              var x = txps[0];
-              x.id.should.equal(txp.id);
-              should.exist(x.proposalSignature);
-              should.not.exist(x.proposalSignaturePubKey);
-              should.not.exist(x.proposalSignaturePubKeySig);
-              // Should be visible for other copayers as well
-              clients[1].getTxProposals({}, (err, txps) => {
+              should.exist(publishedTxp);
+              publishedTxp.status.should.equal('pending');
+              clients[0].getTxProposals({}, (err, txps) => {
                 should.not.exist(err);
                 txps.length.should.equal(1);
-                txps[0].id.should.equal(txp.id);
-                done();
+                var x = txps[0];
+                x.id.should.equal(txp.id);
+                should.exist(x.proposalSignature);
+                should.not.exist(x.proposalSignaturePubKey);
+                should.not.exist(x.proposalSignaturePubKeySig);
+                // Should be visible for other copayers as well
+                clients[1].getTxProposals({}, (err, txps) => {
+                  should.not.exist(err);
+                  txps.length.should.equal(1);
+                  txps[0].id.should.equal(txp.id);
+                  done();
+                });
               });
-            });
-          });
+            }
+          );
         });
       });
     });
@@ -2962,22 +3334,25 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
       var opts = {
         txProposalId: '1234',
-        outputs: [{
-          amount: 1e8,
-          toAddress: toAddress,
-          message: 'world',
-        }, {
-          amount: 2e8,
-          toAddress: toAddress,
-        }],
+        outputs: [
+          {
+            amount: 1e8,
+            toAddress: toAddress,
+            message: 'world',
+          },
+          {
+            amount: 2e8,
+            toAddress: toAddress,
+          },
+        ],
         message: 'hello',
         feeLevel: 'economy',
         customData: {
           someObj: {
-            x: 1
+            x: 1,
           },
-          someStr: "str"
-        }
+          someStr: 'str',
+        },
       };
       clients[0].createTxProposal(opts, (err, txp) => {
         should.not.exist(err);
@@ -2985,50 +3360,58 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         txp.status.should.equal('temporary');
         txp.feeLevel.should.equal('economy');
         txp.feePerKb.should.equal(123e2);
-        clients[0].publishTxProposal({
-          txp: txp,
-        }, (err, publishedTxp) => {
-          should.not.exist(err);
-          should.exist(publishedTxp);
-          publishedTxp.status.should.equal('pending');
-          clients[0].getTxProposals({}, (err, txps) => {
+        clients[0].publishTxProposal(
+          {
+            txp: txp,
+          },
+          (err, publishedTxp) => {
             should.not.exist(err);
-            txps.length.should.equal(1);
-            // Try to republish from copayer 1
-            clients[1].createTxProposal(opts, (err, txp) => {
+            should.exist(publishedTxp);
+            publishedTxp.status.should.equal('pending');
+            clients[0].getTxProposals({}, (err, txps) => {
               should.not.exist(err);
-              should.exist(txp);
-              txp.status.should.equal('pending');
-              clients[1].publishTxProposal({
-                txp: txp
-              }, (err, publishedTxp) => {
+              txps.length.should.equal(1);
+              // Try to republish from copayer 1
+              clients[1].createTxProposal(opts, (err, txp) => {
                 should.not.exist(err);
-                should.exist(publishedTxp);
-                publishedTxp.status.should.equal('pending');
-                done();
+                should.exist(txp);
+                txp.status.should.equal('pending');
+                clients[1].publishTxProposal(
+                  {
+                    txp: txp,
+                  },
+                  (err, publishedTxp) => {
+                    should.not.exist(err);
+                    should.exist(publishedTxp);
+                    publishedTxp.status.should.equal('pending');
+                    done();
+                  }
+                );
               });
             });
-          });
-        });
+          }
+        );
       });
     });
     it('Should protect against tampering at proposal creation', (done) => {
       var opts = {
-        outputs: [{
-          amount: 1e8,
-          toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-          message: 'world'
-        }, {
-          amount: 2e8,
-          toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-        }],
+        outputs: [
+          {
+            amount: 1e8,
+            toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+            message: 'world',
+          },
+          {
+            amount: 2e8,
+            toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+          },
+        ],
         feePerKb: 123e2,
         changeAddress: myAddress.address,
         message: 'hello',
       };
 
       var tamperings = [
-
         (txp) => {
           txp.feePerKb = 45600;
         },
@@ -3067,75 +3450,90 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       clients[0]._getCreateTxProposalArgs = (opts) => {
         return args;
       };
-      async.each(tamperings, (tamperFn, next) => {
-        helpers.tamperResponse(clients[0], 'post', '/v2/txproposals/', args, tamperFn, () => {
-          clients[0].createTxProposal(opts, (err, txp) => {
-            should.exist(err, 'For tamper function ' + tamperFn);
-            err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-            next();
+      async.each(
+        tamperings,
+        (tamperFn, next) => {
+          helpers.tamperResponse(clients[0], 'post', '/v2/txproposals/', args, tamperFn, () => {
+            clients[0].createTxProposal(opts, (err, txp) => {
+              should.exist(err, 'For tamper function ' + tamperFn);
+              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+              next();
+            });
           });
-        });
-      }, (err) => {
-        should.not.exist(err);
-        clients[0]._getCreateTxProposalArgs = tmp;
-        done();
-      });
+        },
+        (err) => {
+          should.not.exist(err);
+          clients[0]._getCreateTxProposalArgs = tmp;
+          done();
+        }
+      );
     });
     it('Should fail to publish when not enough available UTXOs', (done) => {
       var opts = {
-        outputs: [{
-          amount: 3e8,
-          toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-        }],
+        outputs: [
+          {
+            amount: 3e8,
+            toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+          },
+        ],
         feePerKb: 100e2,
       };
 
       var txp1, txp2;
-      async.series([
-
-        (next) => {
-          clients[0].createTxProposal(opts, (err, txp) => {
-            txp1 = txp;
-            next(err);
-          });
-        },
-        (next) => {
-          clients[0].createTxProposal(opts, (err, txp) => {
-            txp2 = txp;
-            next(err);
-          });
-
-        },
-        (next) => {
-          clients[0].publishTxProposal({
-            txp: txp1
-          }, next);
-        },
-        (next) => {
-          clients[0].publishTxProposal({
-            txp: txp2
-          }, (err) => {
-            should.exist(err);
-            err.should.be.an.instanceOf(Errors.UNAVAILABLE_UTXOS);
-            next();
-          });
-        },
-        (next) => {
-          clients[1].rejectTxProposal(txp1, 'Free locked UTXOs', next);
-        },
-        (next) => {
-          clients[2].rejectTxProposal(txp1, 'Free locked UTXOs', next);
-        },
-        (next) => {
-
-          clients[0].publishTxProposal({
-            txp: txp2
-          }, next);
-        },
-      ], (err) => {
-        should.not.exist(err);
-        done();
-      });
+      async.series(
+        [
+          (next) => {
+            clients[0].createTxProposal(opts, (err, txp) => {
+              txp1 = txp;
+              next(err);
+            });
+          },
+          (next) => {
+            clients[0].createTxProposal(opts, (err, txp) => {
+              txp2 = txp;
+              next(err);
+            });
+          },
+          (next) => {
+            clients[0].publishTxProposal(
+              {
+                txp: txp1,
+              },
+              next
+            );
+          },
+          (next) => {
+            clients[0].publishTxProposal(
+              {
+                txp: txp2,
+              },
+              (err) => {
+                should.exist(err);
+                err.should.be.an.instanceOf(Errors.UNAVAILABLE_UTXOS);
+                next();
+              }
+            );
+          },
+          (next) => {
+            clients[1].rejectTxProposal(txp1, 'Free locked UTXOs', next);
+          },
+          (next) => {
+            clients[2].rejectTxProposal(txp1, 'Free locked UTXOs', next);
+          },
+          (next) => {
+            clients[0].publishTxProposal(
+              {
+                txp: txp2,
+              },
+              next
+            );
+          },
+        ],
+        (err) => {
+          should.not.exist(err);
+          done();
+        }
+      );
     });
     it('Should create proposal with unconfirmed inputs', (done) => {
       var opts = {
@@ -3172,7 +3570,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         feePerKb: 800e2,
       };
       helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
-
         should.exist(err);
         err.should.be.an.instanceOf(Errors.INSUFFICIENT_FUNDS_FOR_FEE);
         opts.feePerKb = 100e2;
@@ -3281,10 +3678,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
     it('Should encrypt proposal message', (done) => {
       var opts = {
-        outputs: [{
-          amount: 1000e2,
-          toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-        }],
+        outputs: [
+          {
+            amount: 1000e2,
+            toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+          },
+        ],
         message: 'some message',
         feePerKb: 100e2,
       };
@@ -3323,15 +3722,23 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
           should.not.exist(err);
 
-          helpers.tamperResponse(clients[0], 'get', '/v1/txproposals/', {}, (txps) => {
-            txps[0].proposalSignature = '304402206e4a1db06e00068582d3be41cfc795dcf702451c132581e661e7241ef34ca19202203e17598b4764913309897d56446b51bc1dcd41a25d90fdb5f87a6b58fe3a6920';
-          }, () => {
-            clients[0].getTxProposals({}, (err, txps) => {
-              should.exist(err);
-              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-              done();
-            });
-          });
+          helpers.tamperResponse(
+            clients[0],
+            'get',
+            '/v1/txproposals/',
+            {},
+            (txps) => {
+              txps[0].proposalSignature =
+                '304402206e4a1db06e00068582d3be41cfc795dcf702451c132581e661e7241ef34ca19202203e17598b4764913309897d56446b51bc1dcd41a25d90fdb5f87a6b58fe3a6920';
+            },
+            () => {
+              clients[0].getTxProposals({}, (err, txps) => {
+                should.exist(err);
+                err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+                done();
+              });
+            }
+          );
         });
       });
       it('should detect tampered amount', (done) => {
@@ -3343,15 +3750,22 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
           should.not.exist(err);
 
-          helpers.tamperResponse(clients[0], 'get', '/v1/txproposals/', {}, (txps) => {
-            txps[0].outputs[0].amount = 1e8;
-          }, () => {
-            clients[0].getTxProposals({}, (err, txps) => {
-              should.exist(err);
-              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-              done();
-            });
-          });
+          helpers.tamperResponse(
+            clients[0],
+            'get',
+            '/v1/txproposals/',
+            {},
+            (txps) => {
+              txps[0].outputs[0].amount = 1e8;
+            },
+            () => {
+              clients[0].getTxProposals({}, (err, txps) => {
+                should.exist(err);
+                err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+                done();
+              });
+            }
+          );
         });
       });
       it('should detect change address not it wallet', (done) => {
@@ -3363,15 +3777,22 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
           should.not.exist(err);
 
-          helpers.tamperResponse(clients[0], 'get', '/v1/txproposals/', {}, (txps) => {
-            txps[0].changeAddress.address = 'mnA11ZwktRp4sZJbS8MbXmmFPZAgriuwhh';
-          }, () => {
-            clients[0].getTxProposals({}, (err, txps) => {
-              should.exist(err);
-              err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-              done();
-            });
-          });
+          helpers.tamperResponse(
+            clients[0],
+            'get',
+            '/v1/txproposals/',
+            {},
+            (txps) => {
+              txps[0].changeAddress.address = 'mnA11ZwktRp4sZJbS8MbXmmFPZAgriuwhh';
+            },
+            () => {
+              clients[0].getTxProposals({}, (err, txps) => {
+                should.exist(err);
+                err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+                done();
+              });
+            }
+          );
         });
       });
     });
@@ -3380,25 +3801,32 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
   describe('Transaction Proposal signing', function () {
     this.timeout(5000);
     var setup = (m, n, coin, network, cb) => {
-      helpers.createAndJoinWallet(clients, keys, m, n, {
-        coin: coin,
-        network: network,
-      }, (w) => {
-        clients[0].createAddress((err, address) => {
-          should.not.exist(err);
+      helpers.createAndJoinWallet(
+        clients,
+        keys,
+        m,
+        n,
+        {
+          coin: coin,
+          network: network,
+        },
+        (w) => {
+          clients[0].createAddress((err, address) => {
+            should.not.exist(err);
 
-          // TODO change createAddress to /v4/, and remove this.
-          if (coin == 'bch') {
-            address.address = Bitcore_['bch'].Address(address.address).toString(true);
-          }
-          // ==
+            // TODO change createAddress to /v4/, and remove this.
+            if (coin == 'bch') {
+              address.address = Astracore_['bch'].Address(address.address).toString(true);
+            }
+            // ==
 
-          blockchainExplorerMock.setUtxo(address, 2, 2);
-          blockchainExplorerMock.setUtxo(address, 2, 2);
-          blockchainExplorerMock.setUtxo(address, 1, 2, 0);
-          cb();
-        });
-      });
+            blockchainExplorerMock.setUtxo(address, 2, 2);
+            blockchainExplorerMock.setUtxo(address, 2, 2);
+            blockchainExplorerMock.setUtxo(address, 1, 2, 0);
+            cb();
+          });
+        }
+      );
     };
 
     describe('BTC', (done) => {
@@ -3409,47 +3837,54 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       it('Should sign proposal', (done) => {
         var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
         };
         clients[0].createTxProposal(opts, (err, txp) => {
           should.not.exist(err);
           should.exist(txp);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-
-
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
               should.not.exist(err);
-              let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
-              clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
+              should.exist(publishedTxp);
+              publishedTxp.status.should.equal('pending');
+
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
                 should.not.exist(err);
-                txp.status.should.equal('accepted');
-                done();
+                let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
+                clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
+                  should.not.exist(err);
+                  txp.status.should.equal('accepted');
+                  done();
+                });
               });
-            });
-          });
+            }
+          );
         });
       });
       it('Should sign proposal with no change', (done) => {
         var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
         var opts = {
-          outputs: [{
-            amount: 4e8 - 100,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 4e8 - 100,
+              toAddress: toAddress,
+            },
+          ],
           excludeUnconfirmedUtxos: true,
           feePerKb: 1,
         };
@@ -3458,48 +3893,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.exist(txp);
           var t = Utils.buildTx(txp);
           should.not.exist(t.getChangeOutput());
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.not.exist(err);
-              let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
-              clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
-                should.not.exist(err);
-                txp.status.should.equal('accepted');
-                done();
-              });
-            });
-          });
-        });
-      });
-      it('Should sign proposal created with send max settings', (done) => {
-        var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
-        clients[0].getSendMaxInfo({
-          feePerKb: 100e2,
-          returnInputs: true
-        }, (err, info) => {
-          should.not.exist(err);
-          var opts = {
-            outputs: [{
-              amount: info.amount,
-              toAddress: toAddress,
-            }],
-            inputs: info.inputs,
-            fee: info.fee,
-          };
-          clients[0].createTxProposal(opts, (err, txp) => {
-            should.not.exist(err);
-            should.exist(txp);
-            var t = Utils.buildTx(txp);
-            should.not.exist(t.getChangeOutput());
-            clients[0].publishTxProposal({
+          clients[0].publishTxProposal(
+            {
               txp: txp,
-            }, (err, publishedTxp) => {
+            },
+            (err, publishedTxp) => {
               should.not.exist(err);
               should.exist(publishedTxp);
               publishedTxp.status.should.equal('pending');
@@ -3510,68 +3908,128 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                 clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
                   should.not.exist(err);
                   txp.status.should.equal('accepted');
-                  clients[0].getBalance({}, (err, balance) => {
-                    should.not.exist(err);
-                    balance.lockedAmount.should.equal(5e8);
-                    done();
-                  });
+                  done();
                 });
               });
-            });
-          });
+            }
+          );
         });
+      });
+      it('Should sign proposal created with send max settings', (done) => {
+        var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
+        clients[0].getSendMaxInfo(
+          {
+            feePerKb: 100e2,
+            returnInputs: true,
+          },
+          (err, info) => {
+            should.not.exist(err);
+            var opts = {
+              outputs: [
+                {
+                  amount: info.amount,
+                  toAddress: toAddress,
+                },
+              ],
+              inputs: info.inputs,
+              fee: info.fee,
+            };
+            clients[0].createTxProposal(opts, (err, txp) => {
+              should.not.exist(err);
+              should.exist(txp);
+              var t = Utils.buildTx(txp);
+              should.not.exist(t.getChangeOutput());
+              clients[0].publishTxProposal(
+                {
+                  txp: txp,
+                },
+                (err, publishedTxp) => {
+                  should.not.exist(err);
+                  should.exist(publishedTxp);
+                  publishedTxp.status.should.equal('pending');
+                  let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+                  clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+                    should.not.exist(err);
+                    let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
+                    clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
+                      should.not.exist(err);
+                      txp.status.should.equal('accepted');
+                      clients[0].getBalance({}, (err, balance) => {
+                        should.not.exist(err);
+                        balance.lockedAmount.should.equal(5e8);
+                        done();
+                      });
+                    });
+                  });
+                }
+              );
+            });
+          }
+        );
       });
 
       // DISABLED 2020-04-07
       it.skip('Should sign proposal (legacy txp version 3)', (done) => {
         var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
         };
-        clients[0].createTxProposal(opts, (err, txp) => {
-          should.not.exist(err);
-          should.exist(txp);
-          txp.version.should.equal(3);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
+        clients[0].createTxProposal(
+          opts,
+          (err, txp) => {
             should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-
-
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.not.exist(err);
-              let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
-              clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
+            should.exist(txp);
+            txp.version.should.equal(3);
+            clients[0].publishTxProposal(
+              {
+                txp: txp,
+              },
+              (err, publishedTxp) => {
                 should.not.exist(err);
-                txp.status.should.equal('accepted');
-                done();
-              });
-            });
-          });
-        }, '/v3/txproposals');
+                should.exist(publishedTxp);
+                publishedTxp.status.should.equal('pending');
+
+                let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+                clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+                  should.not.exist(err);
+                  let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
+                  clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
+                    should.not.exist(err);
+                    txp.status.should.equal('accepted');
+                    done();
+                  });
+                });
+              }
+            );
+          },
+          '/v3/txproposals'
+        );
       });
 
       it.skip('Should fail with need_update error if trying to sign a txp v4 on old client', (done) => {
         var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
         };
@@ -3579,31 +4037,42 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.not.exist(err);
           should.exist(txp);
           txp.version.should.equal(4);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.exist(err);
-              err.toString().should.contain('upgrade');
-              done();
-            }, '/v1/txproposals/');
-          });
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
+              should.not.exist(err);
+              should.exist(publishedTxp);
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(
+                publishedTxp,
+                signatures,
+                (err, txp) => {
+                  should.exist(err);
+                  err.toString().should.contain('upgrade');
+                  done();
+                },
+                '/v1/txproposals/'
+              );
+            }
+          );
         });
       });
 
       it.skip('Should fail with wrong_signatures error if trying to push v3 signatures to  a v4 txp v', (done) => {
         var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
         };
@@ -3611,22 +4080,29 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.not.exist(err);
           should.exist(txp);
           txp.version.should.equal(4);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            txp.version = 3; // get v3 signatures
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.exist(err);
-              err.toString().should.contain('BAD_SIGNATURES');
-              done();
-            }, '/v2/txproposals/');
-          });
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
+              should.not.exist(err);
+              should.exist(publishedTxp);
+              txp.version = 3; // get v3 signatures
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(
+                publishedTxp,
+                signatures,
+                (err, txp) => {
+                  should.exist(err);
+                  err.toString().should.contain('BAD_SIGNATURES');
+                  done();
+                },
+                '/v2/txproposals/'
+              );
+            }
+          );
         });
       });
- 
     });
 
     describe('BCH multisig', (done) => {
@@ -3637,81 +4113,107 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       it('(BCH) two incompatible clients try to sign schnorr txp', (done) => {
         var toAddress = 'qr5m6xul5nahlzczeaqkg5qe3mgt754djuug954tc3';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
         };
         clients[0].createTxProposal(opts, (err, txp) => {
           should.not.exist(err);
           should.exist(txp);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
               should.not.exist(err);
-              let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
-              clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
-                should.exist(err);
-                err.message.should.contain("UPGRADE_NEEDED");
-                done();
-              }, '/v1/txproposals/');
-            });
-          });
+              should.exist(publishedTxp);
+              publishedTxp.status.should.equal('pending');
+
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+                should.not.exist(err);
+                let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
+                clients[1].pushSignatures(
+                  publishedTxp,
+                  signatures2,
+                  (err, txp) => {
+                    should.exist(err);
+                    err.message.should.contain('UPGRADE_NEEDED');
+                    done();
+                  },
+                  '/v1/txproposals/'
+                );
+              });
+            }
+          );
         });
       });
 
       it('BCH Multisig Txp signingMethod = schnorr', (done) => {
         var toAddress = 'qr5m6xul5nahlzczeaqkg5qe3mgt754djuug954tc3';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
-          signingMethod: 'schnorr',       // forcing schnorr on BCH/livenet
+          signingMethod: 'schnorr', // forcing schnorr on BCH/livenet
         };
         clients[0].createTxProposal(opts, (err, txp) => {
           should.not.exist(err);
           should.exist(txp);
-          txp.signingMethod.should.equal('schnorr'); 
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.signingMethod.should.equal('schnorr'); 
-            publishedTxp.status.should.equal('pending');
-
-
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+          txp.signingMethod.should.equal('schnorr');
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
               should.not.exist(err);
-              let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
-              clients[1].pushSignatures(publishedTxp, signatures2, (err, txp) => {
-                should.not.exist(err);
-                txp.status.should.equal("accepted");
-                done();
-              }, '/v2/txproposals/');
-            }, '/v2/txproposals/');
-          });
+              should.exist(publishedTxp);
+              publishedTxp.signingMethod.should.equal('schnorr');
+              publishedTxp.status.should.equal('pending');
+
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(
+                publishedTxp,
+                signatures,
+                (err, txp) => {
+                  should.not.exist(err);
+                  let signatures2 = keys[1].sign(clients[1].getRootPath(), txp);
+                  clients[1].pushSignatures(
+                    publishedTxp,
+                    signatures2,
+                    (err, txp) => {
+                      should.not.exist(err);
+                      txp.status.should.equal('accepted');
+                      done();
+                    },
+                    '/v2/txproposals/'
+                  );
+                },
+                '/v2/txproposals/'
+              );
+            }
+          );
         });
       });
-    })
+    });
 
     describe('BCH testnet (schnorr activaton)', (done) => {
       beforeEach((done) => {
@@ -3721,41 +4223,45 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       it('should sign a tx', (done) => {
         var toAddress = 'qr5m6xul5nahlzczeaqkg5qe3mgt754djuug954tc3';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
-          signingMethod: 'schnorr',       // forcing schnorr on BCH/livenet
+          signingMethod: 'schnorr', // forcing schnorr on BCH/livenet
         };
         clients[0].createTxProposal(opts, (err, txp) => {
           should.not.exist(err);
           should.exist(txp);
-          txp.signingMethod.should.equal('schnorr'); 
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.signingMethod.should.equal('schnorr'); 
-            publishedTxp.status.should.equal('pending');
-
-
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+          txp.signingMethod.should.equal('schnorr');
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
               should.not.exist(err);
-              txp.status.should.equal("accepted");
-              done();
-            });
-          });
+              should.exist(publishedTxp);
+              publishedTxp.signingMethod.should.equal('schnorr');
+              publishedTxp.status.should.equal('pending');
+
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+                should.not.exist(err);
+                txp.status.should.equal('accepted');
+                done();
+              });
+            }
+          );
         });
       });
-    })
-
+    });
 
     describe('BCH', (done) => {
       beforeEach((done) => {
@@ -3765,13 +4271,16 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       it('Should sign proposal', (done) => {
         var toAddress = 'qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
           coin: 'bch',
@@ -3779,136 +4288,180 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         clients[0].createTxProposal(opts, (err, txp) => {
           should.not.exist(err);
           should.exist(txp);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
               should.not.exist(err);
-              txp.status.should.equal('accepted');
-              done();
-            });
-          });
+              should.exist(publishedTxp);
+              publishedTxp.status.should.equal('pending');
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+                should.not.exist(err);
+                txp.status.should.equal('accepted');
+                done();
+              });
+            }
+          );
         });
       });
-
 
       it('Should fail with "upgrade needed" trying to sign schnorr on old clients', (done) => {
         var toAddress = 'qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
           txpVersion: 3,
           coin: 'bch',
         };
-        clients[0].createTxProposal(opts, (err, txp) => {
-          should.not.exist(err);
-          should.exist(txp);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
+        clients[0].createTxProposal(
+          opts,
+          (err, txp) => {
             should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              err.message.should.contain('upgrade');
-              done();
-            }, '/v1/txproposals/');
-          });
-        }, '/v3/txproposals');
+            should.exist(txp);
+            clients[0].publishTxProposal(
+              {
+                txp: txp,
+              },
+              (err, publishedTxp) => {
+                should.not.exist(err);
+                should.exist(publishedTxp);
+                publishedTxp.status.should.equal('pending');
+                let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+                clients[0].pushSignatures(
+                  publishedTxp,
+                  signatures,
+                  (err, txp) => {
+                    err.message.should.contain('upgrade');
+                    done();
+                  },
+                  '/v1/txproposals/'
+                );
+              }
+            );
+          },
+          '/v3/txproposals'
+        );
       });
 
       it('Should sign proposal v3', (done) => {
         var toAddress = 'qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
           txpVersion: 3,
           coin: 'bch',
         };
-        clients[0].createTxProposal(opts, (err, txp) => {
-          should.not.exist(err);
-          should.exist(txp);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
+        clients[0].createTxProposal(
+          opts,
+          (err, txp) => {
             should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.not.exist(err);
-              txp.status.should.equal('accepted');
-              done();
-            }, '/v2/txproposals/');
-          });
-        }, '/v3/txproposals');
+            should.exist(txp);
+            clients[0].publishTxProposal(
+              {
+                txp: txp,
+              },
+              (err, publishedTxp) => {
+                should.not.exist(err);
+                should.exist(publishedTxp);
+                publishedTxp.status.should.equal('pending');
+                let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+                clients[0].pushSignatures(
+                  publishedTxp,
+                  signatures,
+                  (err, txp) => {
+                    should.not.exist(err);
+                    txp.status.should.equal('accepted');
+                    done();
+                  },
+                  '/v2/txproposals/'
+                );
+              }
+            );
+          },
+          '/v3/txproposals'
+        );
       });
 
       it.skip('Should sign proposal (legacy txp version 3)', (done) => {
         var toAddress = 'qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
           coin: 'bch',
         };
-        clients[0].createTxProposal(opts, (err, txp) => {
-          should.not.exist(err);
-          should.exist(txp);
-          txp.version.should.equal(3);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
+        clients[0].createTxProposal(
+          opts,
+          (err, txp) => {
             should.not.exist(err);
-            should.exist(publishedTxp);
-            publishedTxp.status.should.equal('pending');
+            should.exist(txp);
+            txp.version.should.equal(3);
+            clients[0].publishTxProposal(
+              {
+                txp: txp,
+              },
+              (err, publishedTxp) => {
+                should.not.exist(err);
+                should.exist(publishedTxp);
+                publishedTxp.status.should.equal('pending');
 
-
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.not.exist(err);
-              txp.status.should.equal('accepted');
-              done();
-            });
-          });
-        }, '/v3/txproposals');
+                let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+                clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
+                  should.not.exist(err);
+                  txp.status.should.equal('accepted');
+                  done();
+                });
+              }
+            );
+          },
+          '/v3/txproposals'
+        );
       });
 
       it.skip('Should fail with need_update error if trying to sign a txp v4 on old client', (done) => {
         var toAddress = 'qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
         };
@@ -3916,31 +4469,42 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.not.exist(err);
           should.exist(txp);
           txp.version.should.equal(4);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.exist(err);
-              err.toString().should.contain('upgrade');
-              done();
-            }, '/v1/txproposals/');
-          });
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
+              should.not.exist(err);
+              should.exist(publishedTxp);
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(
+                publishedTxp,
+                signatures,
+                (err, txp) => {
+                  should.exist(err);
+                  err.toString().should.contain('upgrade');
+                  done();
+                },
+                '/v1/txproposals/'
+              );
+            }
+          );
         });
       });
 
       it.skip('Should fail with wrong_signatures error if trying to push v3 signatures to  a v4 txp v', (done) => {
         var toAddress = 'qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }, {
-            amount: 2e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+            {
+              amount: 2e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
           message: 'just some message',
         };
@@ -3948,50 +4512,58 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.not.exist(err);
           should.exist(txp);
           txp.version.should.equal(4);
-          clients[0].publishTxProposal({
-            txp: txp,
-          }, (err, publishedTxp) => {
-            should.not.exist(err);
-            should.exist(publishedTxp);
-            txp.version = 3; // get v3 signatures
-            let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-            clients[0].pushSignatures(publishedTxp, signatures, (err, txp) => {
-              should.exist(err);
-              err.toString().should.contain('BAD_SIGNATURES');
-              done();
-            }, '/v2/txproposals/');
-          });
+          clients[0].publishTxProposal(
+            {
+              txp: txp,
+            },
+            (err, publishedTxp) => {
+              should.not.exist(err);
+              should.exist(publishedTxp);
+              txp.version = 3; // get v3 signatures
+              let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+              clients[0].pushSignatures(
+                publishedTxp,
+                signatures,
+                (err, txp) => {
+                  should.exist(err);
+                  err.toString().should.contain('BAD_SIGNATURES');
+                  done();
+                },
+                '/v2/txproposals/'
+              );
+            }
+          );
         });
       });
     });
   });
 
-  describe('Payment Protocol V2', function() {
+  describe('Payment Protocol V2', function () {
     var PP, oldreq, DATA, postArgs;
     var header = {};
     var mockRequest = (bodyBuf, headers) => {
       // bodyBuf = _.isArray(bodyBuf) ? bodyBuf : [bodyBuf];
       Client.PayProV2.request = {
-        'get': (_url) => {
+        get: (_url) => {
           return {
             set: (_k, _v) => {
               if (_k && _v) {
                 header[_k] = _v;
               }
             },
-            query: (_opts) => { },
-            agent: (_opts) => { },
+            query: (_opts) => {},
+            agent: (_opts) => {},
             end: (cb) => {
               return cb(null, {
                 headers: headers || {},
                 statusCode: 200,
                 statusMessage: 'OK',
-                text: bodyBuf
+                text: bodyBuf,
               });
-            }
-          }
+            },
+          };
         },
-        'post': (_url) => {
+        post: (_url) => {
           return {
             set: (_k, _v) => {
               if (_k && _v) {
@@ -4004,17 +4576,17 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                 postArgs.push(_opts);
               }
             },
-            agent: (_opts) => { },
+            agent: (_opts) => {},
             end: (cb) => {
               return cb(null, {
                 headers: headers || {},
                 statusCode: 200,
                 statusMessage: 'OK',
-                text: bodyBuf
+                text: bodyBuf,
               });
-            }
-          }
-        }
+            },
+          };
+        },
       };
     };
     beforeEach(() => {
@@ -4025,22 +4597,23 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       Client.PayProV2.request = oldreq;
       db.dropDatabase((err) => {
         done();
-      })
+      });
     });
 
+    let tests = [
+      {
+        name: 'weightedSize: Legacy BTC',
+        opts: { network: 'livenet' },
+        expectedUnsignedSize: 220,
+      },
+      {
+        name: 'weightedSize: Segwit BTC',
+        opts: { network: 'livenet', useNativeSegwit: true },
+        expectedUnsignedSize: 132,
+      },
+    ];
 
-    let tests = [{ 
-      name: 'weightedSize: Legacy BTC',
-      opts: { network: 'livenet' },
-      expectedUnsignedSize: 220,
-    }, 
-    { 
-      name: 'weightedSize: Segwit BTC',
-      opts: { network: 'livenet', useNativeSegwit: true },
-      expectedUnsignedSize: 132,
-    }]
-
-    _.each(tests, x => {
+    _.each(tests, (x) => {
       describe(x.name, () => {
         // Tests will be considered slow after 1 second elapses
         beforeEach(async () => {
@@ -4056,24 +4629,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                 blockchainExplorerMock.setUtxo(x0, 1, 2);
                 blockchainExplorerMock.setUtxo(x0, 1, 2);
                 var opts = {
-                  paymentUrl: 'https://bitpay.com/i/LanynqCPoL2JQb8z8s5Z3X'
+                  paymentUrl: 'https://bitpay.com/i/LanynqCPoL2JQb8z8s5Z3X',
                 };
 
                 Client.PayProV2.selectPaymentOption(opts).then((paypro) => {
                   //              http.getCall(0).args[0].coin.should.equal('btc');
-                  helpers.createAndPublishTxProposal(clients[0], {
-                    toAddress: paypro.instructions[0].toAddress,
-                    amount: paypro.instructions[0].amount,
-                    message: paypro.memo,
-                    payProUrl: paypro.payProUrl,
-                  }, (err, x) => {
-                    should.not.exist(err);
-                    resolve();
-                  });
+                  helpers.createAndPublishTxProposal(
+                    clients[0],
+                    {
+                      toAddress: paypro.instructions[0].toAddress,
+                      amount: paypro.instructions[0].amount,
+                      message: paypro.memo,
+                      payProUrl: paypro.payProUrl,
+                    },
+                    (err, x) => {
+                      should.not.exist(err);
+                      resolve();
+                    }
+                  );
                 });
               });
             });
-          })
+          });
         });
         it('Should send the signed tx in paypro', function (done) {
           clients[0].getTxProposals({}, (err, txps) => {
@@ -4089,9 +4666,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                 spy.called.should.be.true;
 
                 // unsigned
-                postArgs[0].transactions[0].weightedSize.should.within(x.expectedUnsignedSize, x.expectedUnsignedSize + 10);
+                postArgs[0].transactions[0].weightedSize.should.within(
+                  x.expectedUnsignedSize,
+                  x.expectedUnsignedSize + 10
+                );
 
-                // signed 
+                // signed
                 postArgs[1].transactions[0].weightedSize.should.within(220, 230);
                 done();
               });
@@ -4100,7 +4680,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
       });
     });
-
 
     describe('Shared wallet BTC', () => {
       // Tests will be considered slow after 1 second elapses
@@ -4117,24 +4696,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               var opts = {
-                paymentUrl: 'https://bitpay.com/i/LanynqCPoL2JQb8z8s5Z3X'
+                paymentUrl: 'https://bitpay.com/i/LanynqCPoL2JQb8z8s5Z3X',
               };
 
               Client.PayProV2.selectPaymentOption(opts).then((paypro) => {
                 //              http.getCall(0).args[0].coin.should.equal('btc');
-                helpers.createAndPublishTxProposal(clients[0], {
-                  toAddress: paypro.instructions[0].toAddress,
-                  amount: paypro.instructions[0].amount,
-                  message: paypro.memo,
-                  payProUrl: paypro.payProUrl,
-                }, (err, x) => {
-                  should.not.exist(err);
-                  resolve();
-                });
+                helpers.createAndPublishTxProposal(
+                  clients[0],
+                  {
+                    toAddress: paypro.instructions[0].toAddress,
+                    amount: paypro.instructions[0].amount,
+                    message: paypro.memo,
+                    payProUrl: paypro.payProUrl,
+                  },
+                  (err, x) => {
+                    should.not.exist(err);
+                    resolve();
+                  }
+                );
               });
             });
           });
-        })
+        });
       });
 
       it('Should Create and Verify a Tx from PayPro', (done) => {
@@ -4157,7 +4740,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       it('Should handle broken paypro data', async () => {
         mockRequest(Buffer.from('broken data'), TestData.payProJsonV2.btc.headers);
         var opts = {
-          payProUrl: 'dummy'
+          payProUrl: 'dummy',
         };
         await Client.PayProV2.selectPaymentOption(opts).catch((err) => {
           should.exist(err);
@@ -4212,8 +4795,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               clients[1].broadcastTxProposal(yy, (err, zz, memo) => {
                 should.not.exist(err);
                 spy.called.should.be.true;
-                memo.should.equal('Payment request for BitPay invoice LanynqCPoL2JQb8z8s5Z3X for merchant BitPay Visa® Load (USD-USA)');
-                zz.message.should.equal('Payment request for BitPay invoice LanynqCPoL2JQb8z8s5Z3X for merchant BitPay Visa® Load (USD-USA)');
+                memo.should.equal(
+                  'Payment request for Astracore invoice LanynqCPoL2JQb8z8s5Z3X for merchant Astracore Visa® Load (USD-USA)'
+                );
+                zz.message.should.equal(
+                  'Payment request for Astracore invoice LanynqCPoL2JQb8z8s5Z3X for merchant Astracore Visa® Load (USD-USA)'
+                );
                 done();
               });
             });
@@ -4237,10 +4824,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                 should.not.exist(err);
                 spy.called.should.be.true;
                 var rawTx = Buffer.from(postArgs[1].transactions[0].tx, 'hex');
-                var tx = new Bitcore.Transaction(rawTx);
+                var tx = new Astracore.Transaction(rawTx);
                 var script = tx.inputs[0].script;
                 script.isScriptHashIn().should.equal(true);
-                memo.should.be.equal('Payment request for BitPay invoice LanynqCPoL2JQb8z8s5Z3X for merchant BitPay Visa® Load (USD-USA)');
+                memo.should.be.equal(
+                  'Payment request for Astracore invoice LanynqCPoL2JQb8z8s5Z3X for merchant Astracore Visa® Load (USD-USA)'
+                );
                 done();
               });
             });
@@ -4275,7 +4864,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
 
-
     describe('Shared wallet / requiredFeeRate BTC', () => {
       beforeEach(async () => {
         await new Promise((resolve) => {
@@ -4292,16 +4880,20 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               };
               Client.PayProV2.selectPaymentOption(opts).then((paypro) => {
                 paypro.requiredFeeRate.should.equal(34.337);
-                helpers.createAndPublishTxProposal(clients[0], {
-                  toAddress: paypro.instructions[0].outputs[0].address,
-                  amount: paypro.instructions[0].outputs[0].amount,
-                  message: paypro.memo,
-                  payProUrl: paypro.payProUrl,
-                  feePerKb: paypro.requiredFeeRate * 1024,
-                }, (err, x) => {
-                  should.not.exist(err);
-                  resolve();
-                });
+                helpers.createAndPublishTxProposal(
+                  clients[0],
+                  {
+                    toAddress: paypro.instructions[0].outputs[0].address,
+                    amount: paypro.instructions[0].outputs[0].amount,
+                    message: paypro.memo,
+                    payProUrl: paypro.payProUrl,
+                    feePerKb: paypro.requiredFeeRate * 1024,
+                  },
+                  (err, x) => {
+                    should.not.exist(err);
+                    resolve();
+                  }
+                );
               });
             });
           });
@@ -4344,8 +4936,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                   postArgs[1].transactions.length.should.equal(1);
                   postArgs[1].transactions[0].tx.length.should.be.within(665, 680);
 
-                  memo.should.equal('Payment request for BitPay invoice LanynqCPoL2JQb8z8s5Z3X for merchant BitPay Visa® Load (USD-USA)');
-                  zz.message.should.equal('Payment request for BitPay invoice LanynqCPoL2JQb8z8s5Z3X for merchant BitPay Visa® Load (USD-USA)');
+                  memo.should.equal(
+                    'Payment request for Astracore invoice LanynqCPoL2JQb8z8s5Z3X for merchant Astracore Visa® Load (USD-USA)'
+                  );
+                  zz.message.should.equal(
+                    'Payment request for Astracore invoice LanynqCPoL2JQb8z8s5Z3X for merchant Astracore Visa® Load (USD-USA)'
+                  );
                   zz.feePerKb.should.equal(34.337 * 1024);
                   done();
                 } catch (e) {
@@ -4357,7 +4953,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
       });
 
-
       it('Should NOT fail if requiredFeeRate is not meet', (done) => {
         clients[0].getTxProposals({}, (err, txps) => {
           should.not.exist(err);
@@ -4368,14 +4963,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             let signatures2 = keys[1].sign(clients[1].getRootPath(), xx);
             clients[1].pushSignatures(xx, signatures2, (err, yy, paypro) => {
               should.not.exist(err);
-              done()
+              done();
             });
           });
         });
       });
     });
-
-
 
     describe('1-of-1 wallet BTC', () => {
       beforeEach(async () => {
@@ -4389,22 +4982,26 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               var opts = {
-                paymentUrl: 'https://bitpay.com/i/LanynqCPoL2JQb8z8s5Z3X'
+                paymentUrl: 'https://bitpay.com/i/LanynqCPoL2JQb8z8s5Z3X',
               };
               Client.PayProV2.selectPaymentOption(opts).then((paypro) => {
-                helpers.createAndPublishTxProposal(clients[0], {
-                  toAddress: paypro.instructions[0].outputs[0].address,
-                  amount: paypro.instructions[0].outputs[0].amount,
-                  message: paypro.memo,
-                  payProUrl: paypro.payProUrl,
-                }, (err, x) => {
-                  should.not.exist(err);
-                  resolve();
-                });
-              })
+                helpers.createAndPublishTxProposal(
+                  clients[0],
+                  {
+                    toAddress: paypro.instructions[0].outputs[0].address,
+                    amount: paypro.instructions[0].outputs[0].amount,
+                    message: paypro.memo,
+                    payProUrl: paypro.payProUrl,
+                  },
+                  (err, x) => {
+                    should.not.exist(err);
+                    resolve();
+                  }
+                );
+              });
             });
           });
-        })
+        });
       });
 
       it('Should send the signed tx in paypro', (done) => {
@@ -4419,10 +5016,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               should.not.exist(err);
               spy.called.should.be.true;
               var rawTx = Buffer.from(postArgs[1].transactions[0].tx, 'hex');
-              var tx = new Bitcore.Transaction(rawTx);
+              var tx = new Astracore.Transaction(rawTx);
               var script = tx.inputs[0].script;
               script.isPublicKeyHashIn().should.equal(true);
-              memo.should.be.equal('Payment request for BitPay invoice LanynqCPoL2JQb8z8s5Z3X for merchant BitPay Visa® Load (USD-USA)');
+              memo.should.be.equal(
+                'Payment request for Astracore invoice LanynqCPoL2JQb8z8s5Z3X for merchant Astracore Visa® Load (USD-USA)'
+              );
               done();
             });
           });
@@ -4430,9 +5029,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
 
-
     describe('1-of-1 BCH wallet', () => {
-
       beforeEach(async () => {
         await new Promise((resolve) => {
           DATA = JSON.parse(TestData.payProJsonV2Body.bch);
@@ -4444,26 +5041,30 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               should.exist(x0.address);
 
               // TODO change createAddress to /v4/, and remove this.
-              //x0.address = Bitcore_['bch'].Address(x0.address).toString(true);
+              //x0.address = Astracore_['bch'].Address(x0.address).toString(true);
               // ======
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               var opts = {
                 paymentUrl: 'https://bitpay.com/i/XM8XbreRs6cnKkR3yYT6qQ',
                 chain: 'BCH',
-                currency: 'BCH'
+                currency: 'BCH',
               };
               try {
                 await Client.PayProV2.selectPaymentOption(opts).then((paypro) => {
-                  helpers.createAndPublishTxProposal(clients[0], {
-                    toAddress: paypro.instructions[0].toAddress,
-                    amount: paypro.instructions[0].amount,
-                    message: paypro.memo,
-                    payProUrl: paypro.payProUrl,
-                  }, (err, x) => {
-                    should.not.exist(err);
-                    resolve();
-                  });
+                  helpers.createAndPublishTxProposal(
+                    clients[0],
+                    {
+                      toAddress: paypro.instructions[0].toAddress,
+                      amount: paypro.instructions[0].amount,
+                      message: paypro.memo,
+                      payProUrl: paypro.payProUrl,
+                    },
+                    (err, x) => {
+                      should.not.exist(err);
+                      resolve();
+                    }
+                  );
                 });
               } catch (e) {
                 console.error(e);
@@ -4486,10 +5087,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               should.not.exist(err);
               spy.called.should.be.true;
               var rawTx = Buffer.from(postArgs[1].transactions[0].tx, 'hex');
-              var tx = Bitcore_['bch'].Transaction(rawTx);
+              var tx = Astracore_['bch'].Transaction(rawTx);
               var script = tx.inputs[0].script;
               script.isPublicKeyHashIn().should.equal(true);
-              memo.should.be.equal('Payment request for BitPay invoice XM8XbreRs6cnKkR3yYT6qQ for merchant BitPay Visa® Load (USD-USA)');
+              memo.should.be.equal(
+                'Payment request for Astracore invoice XM8XbreRs6cnKkR3yYT6qQ for merchant Astracore Visa® Load (USD-USA)'
+              );
               done();
             });
           });
@@ -4497,9 +5100,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
 
-
     describe('New proposal flow', () => {
-
       beforeEach(async () => {
         await new Promise((resolve) => {
           DATA = JSON.parse(TestData.payProJsonV2Body.btc);
@@ -4512,27 +5113,35 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               blockchainExplorerMock.setUtxo(x0, 1, 2);
               var opts = {
-                paymentUrl: 'dummy'
+                paymentUrl: 'dummy',
               };
 
               await Client.PayProV2.selectPaymentOption(opts).catch(() => {
-                clients[0].createTxProposal({
-                  outputs: [{
-                    toAddress: DATA.instructions[0].outputs[0].address,
-                    amount: DATA.instructions[0].outputs[0].amount,
-                  }],
-                  message: DATA.memo,
-                  payProUrl: opts.paymentUrl,
-                  feePerKb: 100e2,
-                }, (err, txp) => {
-                  should.not.exist(err);
-                  clients[0].publishTxProposal({
-                    txp: txp
-                  }, (err) => {
+                clients[0].createTxProposal(
+                  {
+                    outputs: [
+                      {
+                        toAddress: DATA.instructions[0].outputs[0].address,
+                        amount: DATA.instructions[0].outputs[0].amount,
+                      },
+                    ],
+                    message: DATA.memo,
+                    payProUrl: opts.paymentUrl,
+                    feePerKb: 100e2,
+                  },
+                  (err, txp) => {
                     should.not.exist(err);
-                    resolve();
-                  });
-                });
+                    clients[0].publishTxProposal(
+                      {
+                        txp: txp,
+                      },
+                      (err) => {
+                        should.not.exist(err);
+                        resolve();
+                      }
+                    );
+                  }
+                );
               });
             });
           });
@@ -4564,31 +5173,36 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           blockchainExplorerMock.setUtxo(x0, 1, 2);
           var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
           var opts = {
-            outputs: [{
-              amount: 40000,
-              toAddress: toAddress,
-            }],
+            outputs: [
+              {
+                amount: 40000,
+                toAddress: toAddress,
+              },
+            ],
             feePerKb: 100e2,
             txProposalId: id,
           };
           clients[0].createTxProposal(opts, (err, txp) => {
             should.not.exist(err);
             should.exist(txp);
-            clients[0].publishTxProposal({
-              txp: txp,
-            }, (err, publishedTxp) => {
-              should.not.exist(err);
-              publishedTxp.id.should.equal(id);
-              clients[0].removeTxProposal(publishedTxp, (err) => {
-                opts.txProposalId = null;
-                clients[0].createTxProposal(opts, (err, txp) => {
-                  should.not.exist(err);
-                  should.exist(txp);
-                  txp.id.should.not.equal(id);
-                  done();
+            clients[0].publishTxProposal(
+              {
+                txp: txp,
+              },
+              (err, publishedTxp) => {
+                should.not.exist(err);
+                publishedTxp.id.should.equal(id);
+                clients[0].removeTxProposal(publishedTxp, (err) => {
+                  opts.txProposalId = null;
+                  clients[0].createTxProposal(opts, (err, txp) => {
+                    should.not.exist(err);
+                    should.exist(txp);
+                    txp.id.should.not.equal(id);
+                    done();
+                  });
                 });
-              });
-            });
+              }
+            );
           });
         });
       });
@@ -4602,11 +5216,13 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
       opts = {
         message: 'hello',
-        outputs: [{
-          amount: 10000,
-          toAddress: toAddress,
-          message: 'world',
-        }],
+        outputs: [
+          {
+            amount: 10000,
+            toAddress: toAddress,
+            message: 'world',
+          },
+        ],
         feePerKb: 100e2,
       };
 
@@ -4642,7 +5258,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               clients[0].broadcastTxProposal(txp, (err, txp) => {
                 should.not.exist(err);
                 txp.status.should.equal('broadcasted');
-                txp.txid.should.equal((new Bitcore.Transaction(blockchainExplorerMock.lastBroadcasted)).id);
+                txp.txid.should.equal(new Astracore.Transaction(blockchainExplorerMock.lastBroadcasted).id);
                 done();
               });
             } else {
@@ -4683,11 +5299,13 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.exist(x0.address);
           blockchainExplorerMock.setUtxo(x0, 1, 1);
           var opts = {
-            outputs: [{
-              amount: 10000000,
-              toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-              message: 'output 0',
-            }],
+            outputs: [
+              {
+                amount: 10000000,
+                toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+                message: 'output 0',
+              },
+            ],
             message: 'hello',
             feePerKb: 100e2,
           };
@@ -4708,7 +5326,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
               clients[0].broadcastTxProposal(txp, (err, txp) => {
                 should.not.exist(err);
                 txp.status.should.equal('broadcasted');
-                txp.txid.should.equal((new Bitcore.Transaction(blockchainExplorerMock.lastBroadcasted)).id);
+                txp.txid.should.equal(new Astracore.Transaction(blockchainExplorerMock.lastBroadcasted).id);
                 txp.outputs[0].message.should.equal('output 0');
                 txp.message.should.equal('hello');
                 done();
@@ -4726,11 +5344,13 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           should.exist(x0.address);
           //blockchainExplorerMock.setUtxo(x0, 1, 1);
           var opts = {
-            outputs: [{
-              amount: 10000000,
-              toAddress: '0x37d7B3bBD88EFdE6a93cF74D2F5b0385D3E3B08A',
-              message: 'output 0',
-            }],
+            outputs: [
+              {
+                amount: 10000000,
+                toAddress: '0x37d7B3bBD88EFdE6a93cF74D2F5b0385D3E3B08A',
+                message: 'output 0',
+              },
+            ],
             message: 'hello',
             feePerKb: 100e2,
           };
@@ -4759,7 +5379,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
       });
     });
-
 
     it('Send and broadcast in 2-3 wallet', (done) => {
       helpers.createAndJoinWallet(clients, keys, 2, 3, {}, (w) => {
@@ -4796,7 +5415,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                   txp.status.should.equal('accepted');
                   clients[1].broadcastTxProposal(txp, (err, txp) => {
                     txp.status.should.equal('broadcasted');
-                    txp.txid.should.equal((new Bitcore.Transaction(blockchainExplorerMock.lastBroadcasted)).id);
+                    txp.txid.should.equal(new Astracore.Transaction(blockchainExplorerMock.lastBroadcasted).id);
                     done();
                   });
                 });
@@ -4832,8 +5451,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
 
-
-
     it('Send, reject, 2 signs and broadcast in 2-3 wallet', (done) => {
       helpers.createAndJoinWallet(clients, keys, 2, 3, {}, (w) => {
         clients[0].createAddress((err, x0) => {
@@ -4862,7 +5479,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                   txp.status.should.equal('accepted');
                   clients[2].broadcastTxProposal(txp, (err, txp) => {
                     txp.status.should.equal('broadcasted');
-                    txp.txid.should.equal((new Bitcore.Transaction(blockchainExplorerMock.lastBroadcasted)).id);
+                    txp.txid.should.equal(new Astracore.Transaction(blockchainExplorerMock.lastBroadcasted).id);
                     done();
                   });
                 });
@@ -4953,7 +5570,8 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       helpers.createAndJoinWallet(clients, keys, 1, 1, {}, (w) => {
         var opts = {
           network: 'testnet',
-          rawTx: '0100000001b1b1b1b0d9786e237ec6a4b80049df9e926563fee7bdbc1ac3c4efc3d0af9a1c010000006a47304402207c612d36d0132ed463526a4b2370de60b0aa08e76b6f370067e7915c2c74179b02206ae8e3c6c84cee0bca8521704eddb40afe4590f14fd5d6434da980787ba3d5110121031be732b984b0f1f404840f2479bcc81f90187298efecc67dd83e1f93d9b2860dfeffffff0200ab9041000000001976a91403383bd4cff200de3690db1ed17d0b1a228ea43f88ac25ad6ed6190000001976a9147ccbaf7bcc1e323548bd1d57d7db03f6e6daf76a88acaec70700',
+          rawTx:
+            '0100000001b1b1b1b0d9786e237ec6a4b80049df9e926563fee7bdbc1ac3c4efc3d0af9a1c010000006a47304402207c612d36d0132ed463526a4b2370de60b0aa08e76b6f370067e7915c2c74179b02206ae8e3c6c84cee0bca8521704eddb40afe4590f14fd5d6434da980787ba3d5110121031be732b984b0f1f404840f2479bcc81f90187298efecc67dd83e1f93d9b2860dfeffffff0200ab9041000000001976a91403383bd4cff200de3690db1ed17d0b1a228ea43f88ac25ad6ed6190000001976a9147ccbaf7bcc1e323548bd1d57d7db03f6e6daf76a88acaec70700',
         };
         clients[0].broadcastRawTx(opts, (err, txid) => {
           should.not.exist(err);
@@ -4993,120 +5611,131 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
     });
     it('should get transaction history decorated with proposal & notes', function (done) {
       this.timeout(5000);
-      async.waterfall([
-
-        (next) => {
-          helpers.createAndJoinWallet(clients, keys, 2, 3, {}, (w) => {
-            clients[0].createAddress((err, address) => {
-              should.not.exist(err);
-              should.exist(address);
-              next(null, address);
-            });
-          });
-        },
-        (address, next) => {
-          blockchainExplorerMock.setUtxo(address, 10, 2);
-          var opts = {
-            amount: 10000,
-            toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-            message: 'some message',
-          };
-          helpers.createAndPublishTxProposal(clients[0], opts, (err, txp) => {
-            should.not.exist(err);
-            clients[1].rejectTxProposal(txp, 'some reason', (err, txp) => {
-              should.not.exist(err);
-              let signatures = keys[2].sign(clients[2].getRootPath(), txp);
-              clients[2].pushSignatures(txp, signatures, (err, txp) => {
+      async.waterfall(
+        [
+          (next) => {
+            helpers.createAndJoinWallet(clients, keys, 2, 3, {}, (w) => {
+              clients[0].createAddress((err, address) => {
                 should.not.exist(err);
-                let signatures = keys[0].sign(clients[0].getRootPath(), txp);
-                clients[0].pushSignatures(txp, signatures, (err, txp) => {
+                should.exist(address);
+                next(null, address);
+              });
+            });
+          },
+          (address, next) => {
+            blockchainExplorerMock.setUtxo(address, 10, 2);
+            var opts = {
+              amount: 10000,
+              toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+              message: 'some message',
+            };
+            helpers.createAndPublishTxProposal(clients[0], opts, (err, txp) => {
+              should.not.exist(err);
+              clients[1].rejectTxProposal(txp, 'some reason', (err, txp) => {
+                should.not.exist(err);
+                let signatures = keys[2].sign(clients[2].getRootPath(), txp);
+                clients[2].pushSignatures(txp, signatures, (err, txp) => {
                   should.not.exist(err);
-                  txp.status.should.equal('accepted');
-                  clients[0].broadcastTxProposal(txp, (err, txp) => {
+                  let signatures = keys[0].sign(clients[0].getRootPath(), txp);
+                  clients[0].pushSignatures(txp, signatures, (err, txp) => {
                     should.not.exist(err);
-                    txp.status.should.equal('broadcasted');
-                    next(null, txp);
+                    txp.status.should.equal('accepted');
+                    clients[0].broadcastTxProposal(txp, (err, txp) => {
+                      should.not.exist(err);
+                      txp.status.should.equal('broadcasted');
+                      next(null, txp);
+                    });
                   });
                 });
               });
             });
-          });
-        },
-        (txp, next) => {
-          clients[1].editTxNote({
-            txid: txp.txid,
-            body: 'just a note'
-          }, (err) => {
-            return next(err, txp);
-          });
-        },
-        (txp, next) => {
-          var history = createTxsV8(2, 1000);
-          history[0].txid = txp.txid;
-          _.each(history, (h) => {
-            h.blockTime = (new Date).toISOString();
-          });
-          blockchainExplorerMock.setHistory(history);
-          clients[0].getTxHistory({}, (err, txs) => {
-            should.not.exist(err);
-            should.exist(txs);
-            txs.length.should.equal(2);
-            var decorated = _.find(txs, {
-              txid: txp.txid
+          },
+          (txp, next) => {
+            clients[1].editTxNote(
+              {
+                txid: txp.txid,
+                body: 'just a note',
+              },
+              (err) => {
+                return next(err, txp);
+              }
+            );
+          },
+          (txp, next) => {
+            var history = createTxsV8(2, 1000);
+            history[0].txid = txp.txid;
+            _.each(history, (h) => {
+              h.blockTime = new Date().toISOString();
             });
-            should.exist(decorated);
-            decorated.proposalId.should.equal(txp.id);
-            decorated.message.should.equal('some message');
-            decorated.actions.length.should.equal(3);
-            var rejection = _.find(decorated.actions, {
-              type: 'reject'
-            });
-            should.exist(rejection);
-            rejection.comment.should.equal('some reason');
+            blockchainExplorerMock.setHistory(history);
+            clients[0].getTxHistory({}, (err, txs) => {
+              should.not.exist(err);
+              should.exist(txs);
+              txs.length.should.equal(2);
+              var decorated = _.find(txs, {
+                txid: txp.txid,
+              });
+              should.exist(decorated);
+              decorated.proposalId.should.equal(txp.id);
+              decorated.message.should.equal('some message');
+              decorated.actions.length.should.equal(3);
+              var rejection = _.find(decorated.actions, {
+                type: 'reject',
+              });
+              should.exist(rejection);
+              rejection.comment.should.equal('some reason');
 
-            var note = decorated.note;
-            should.exist(note);
-            note.body.should.equal('just a note');
-            note.editedByName.should.equal('copayer 1');
-            next();
-          });
+              var note = decorated.note;
+              should.exist(note);
+              note.body.should.equal('just a note');
+              note.editedByName.should.equal('copayer 1');
+              next();
+            });
+          },
+        ],
+        (err) => {
+          should.not.exist(err);
+          done();
         }
-      ], (err) => {
-        should.not.exist(err);
-        done();
-      });
+      );
     });
     describe('should get paginated transaction history', (done) => {
-      let testCases = [{
-        opts: {},
-        expected: [20, 10]
-      }, {
-        opts: {
-          skip: 1,
+      let testCases = [
+        {
+          opts: {},
+          expected: [20, 10],
         },
-        expected: [10]
-      }, {
-        opts: {
-          limit: 1,
+        {
+          opts: {
+            skip: 1,
+          },
+          expected: [10],
         },
-        expected: [20]
-      }, {
-        opts: {
-          skip: 3,
+        {
+          opts: {
+            limit: 1,
+          },
+          expected: [20],
         },
-        expected: []
-      }, {
-        opts: {
-          skip: 1,
-          limit: 10,
+        {
+          opts: {
+            skip: 3,
+          },
+          expected: [],
         },
-        expected: [10]
-      },];
+        {
+          opts: {
+            skip: 1,
+            limit: 10,
+          },
+          expected: [10],
+        },
+      ];
 
       beforeEach((done) => {
         let txs = createTxsV8(2, 1000);
-        txs[0].blockTime = (new Date(20 * 1000)).toISOString();
-        txs[1].blockTime = (new Date(10 * 1000)).toISOString();
+        txs[0].blockTime = new Date(20 * 1000).toISOString();
+        txs[1].blockTime = new Date(10 * 1000).toISOString();
         blockchainExplorerMock.setHistory(txs);
         helpers.createAndJoinWallet(clients, keys, 1, 1, {}, (w) => {
           clients[0].createAddress((err, x0) => {
@@ -5117,7 +5746,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
       });
       _.each(testCases, (testCase) => {
-
         it(`should skip ${testCase.opts.skip} limit ${testCase.opts.limit}`, (done) => {
           clients[0].getTxHistory(testCase.opts, (err, txs) => {
             should.not.exist(err);
@@ -5139,153 +5767,194 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
     });
 
     it('should edit a note for an arbitrary txid', (done) => {
-      clients[0].editTxNote({
-        txid: '123',
-        body: 'note body'
-      }, (err, note) => {
-        should.not.exist(err);
-        should.exist(note);
-        note.body.should.equal('note body');
-        clients[0].getTxNote({
+      clients[0].editTxNote(
+        {
           txid: '123',
-        }, (err, note) => {
+          body: 'note body',
+        },
+        (err, note) => {
           should.not.exist(err);
           should.exist(note);
-          note.txid.should.equal('123');
-          note.walletId.should.equal(clients[0].credentials.walletId);
           note.body.should.equal('note body');
-          note.editedBy.should.equal(clients[0].credentials.copayerId);
-          note.editedByName.should.equal(clients[0].credentials.copayerName);
-          note.createdOn.should.equal(note.editedOn);
-          done();
-        });
-      });
+          clients[0].getTxNote(
+            {
+              txid: '123',
+            },
+            (err, note) => {
+              should.not.exist(err);
+              should.exist(note);
+              note.txid.should.equal('123');
+              note.walletId.should.equal(clients[0].credentials.walletId);
+              note.body.should.equal('note body');
+              note.editedBy.should.equal(clients[0].credentials.copayerId);
+              note.editedByName.should.equal(clients[0].credentials.copayerName);
+              note.createdOn.should.equal(note.editedOn);
+              done();
+            }
+          );
+        }
+      );
     });
     it('should not send note body in clear text', (done) => {
       var spy = sinon.spy(clients[0].request, 'put');
-      clients[0].editTxNote({
-        txid: '123',
-        body: 'a random note'
-      }, (err) => {
-        should.not.exist(err);
-        var url = spy.getCall(0).args[0];
-        var body = JSON.stringify(spy.getCall(0).args[1]);
-        url.should.contain('/txnotes');
-        body.should.contain('123');
-        body.should.not.contain('a random note');
-        done();
-      });
+      clients[0].editTxNote(
+        {
+          txid: '123',
+          body: 'a random note',
+        },
+        (err) => {
+          should.not.exist(err);
+          var url = spy.getCall(0).args[0];
+          var body = JSON.stringify(spy.getCall(0).args[1]);
+          url.should.contain('/txnotes');
+          body.should.contain('123');
+          body.should.not.contain('a random note');
+          done();
+        }
+      );
     });
 
     it('should share notes between copayers', (done) => {
-      clients[0].editTxNote({
-        txid: '123',
-        body: 'note body'
-      }, (err) => {
-        should.not.exist(err);
-        clients[0].getTxNote({
+      clients[0].editTxNote(
+        {
           txid: '123',
-        }, (err, note) => {
+          body: 'note body',
+        },
+        (err) => {
           should.not.exist(err);
-          should.exist(note);
-          note.editedBy.should.equal(clients[0].credentials.copayerId);
-          var creator = note.editedBy;
-          clients[1].getTxNote({
-            txid: '123',
-          }, (err, note) => {
-            should.not.exist(err);
-            should.exist(note);
-            note.body.should.equal('note body');
-            note.editedBy.should.equal(creator);
-            done();
-          });
-        });
-      });
+          clients[0].getTxNote(
+            {
+              txid: '123',
+            },
+            (err, note) => {
+              should.not.exist(err);
+              should.exist(note);
+              note.editedBy.should.equal(clients[0].credentials.copayerId);
+              var creator = note.editedBy;
+              clients[1].getTxNote(
+                {
+                  txid: '123',
+                },
+                (err, note) => {
+                  should.not.exist(err);
+                  should.exist(note);
+                  note.body.should.equal('note body');
+                  note.editedBy.should.equal(creator);
+                  done();
+                }
+              );
+            }
+          );
+        }
+      );
     });
     it('should get all notes edited past a given date', (done) => {
       var clock = sinon.useFakeTimers({ toFake: ['Date'] });
-      async.series([
-
-        (next) => {
-          clients[0].getTxNotes({}, (err, notes) => {
-            should.not.exist(err);
-            notes.should.be.empty;
-            next();
-          });
-        },
-        (next) => {
-          clients[0].editTxNote({
-            txid: '123',
-            body: 'note body'
-          }, next);
-        },
-        (next) => {
-          clients[0].getTxNotes({
-            minTs: 0,
-          }, (err, notes) => {
-            should.not.exist(err);
-            notes.length.should.equal(1);
-            notes[0].txid.should.equal('123');
-            next();
-          });
-        },
-        (next) => {
-          clock.tick(60 * 1000);
-          clients[0].editTxNote({
-            txid: '456',
-            body: 'another note'
-          }, next);
-        },
-        (next) => {
-          clients[0].getTxNotes({
-            minTs: 0,
-          }, (err, notes) => {
-            should.not.exist(err);
-            notes.length.should.equal(2);
-            _.difference(_.map(notes, 'txid'), ['123', '456']).should.be.empty;
-            next();
-          });
-        },
-        (next) => {
-          clients[0].getTxNotes({
-            minTs: 50,
-          }, (err, notes) => {
-            should.not.exist(err);
-            notes.length.should.equal(1);
-            notes[0].txid.should.equal('456');
-            next();
-          });
-        },
-        (next) => {
-          clock.tick(60 * 1000);
-          clients[0].editTxNote({
-            txid: '123',
-            body: 'an edit'
-          }, next);
-        },
-        (next) => {
-          clients[0].getTxNotes({
-            minTs: 100,
-          }, (err, notes) => {
-            should.not.exist(err);
-            notes.length.should.equal(1);
-            notes[0].txid.should.equal('123');
-            notes[0].body.should.equal('an edit');
-            next();
-          });
-        },
-        (next) => {
-          clients[0].getTxNotes({}, (err, notes) => {
-            should.not.exist(err);
-            notes.length.should.equal(2);
-            next();
-          });
-        },
-      ], (err) => {
-        should.not.exist(err);
-        clock.restore();
-        done();
-      });
+      async.series(
+        [
+          (next) => {
+            clients[0].getTxNotes({}, (err, notes) => {
+              should.not.exist(err);
+              notes.should.be.empty;
+              next();
+            });
+          },
+          (next) => {
+            clients[0].editTxNote(
+              {
+                txid: '123',
+                body: 'note body',
+              },
+              next
+            );
+          },
+          (next) => {
+            clients[0].getTxNotes(
+              {
+                minTs: 0,
+              },
+              (err, notes) => {
+                should.not.exist(err);
+                notes.length.should.equal(1);
+                notes[0].txid.should.equal('123');
+                next();
+              }
+            );
+          },
+          (next) => {
+            clock.tick(60 * 1000);
+            clients[0].editTxNote(
+              {
+                txid: '456',
+                body: 'another note',
+              },
+              next
+            );
+          },
+          (next) => {
+            clients[0].getTxNotes(
+              {
+                minTs: 0,
+              },
+              (err, notes) => {
+                should.not.exist(err);
+                notes.length.should.equal(2);
+                _.difference(_.map(notes, 'txid'), ['123', '456']).should.be.empty;
+                next();
+              }
+            );
+          },
+          (next) => {
+            clients[0].getTxNotes(
+              {
+                minTs: 50,
+              },
+              (err, notes) => {
+                should.not.exist(err);
+                notes.length.should.equal(1);
+                notes[0].txid.should.equal('456');
+                next();
+              }
+            );
+          },
+          (next) => {
+            clock.tick(60 * 1000);
+            clients[0].editTxNote(
+              {
+                txid: '123',
+                body: 'an edit',
+              },
+              next
+            );
+          },
+          (next) => {
+            clients[0].getTxNotes(
+              {
+                minTs: 100,
+              },
+              (err, notes) => {
+                should.not.exist(err);
+                notes.length.should.equal(1);
+                notes[0].txid.should.equal('123');
+                notes[0].body.should.equal('an edit');
+                next();
+              }
+            );
+          },
+          (next) => {
+            clients[0].getTxNotes({}, (err, notes) => {
+              should.not.exist(err);
+              notes.length.should.equal(2);
+              next();
+            });
+          },
+        ],
+        (err) => {
+          should.not.exist(err);
+          clock.restore();
+          done();
+        }
+      );
     });
   });
 
@@ -5312,7 +5981,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
     describe(`#upgradeMultipleCredentialsV1`, () => {
       it(`should  import many credentials`, () => {
-        let oldies = _.map(oldCredentials, x => JSON.parse(x.blob));
+        let oldies = _.map(oldCredentials, (x) => JSON.parse(x.blob));
         let imported = Client.upgradeMultipleCredentialsV1(oldies);
 
         imported.credentials.length.should.equal(oldies.length);
@@ -5327,8 +5996,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
 
       it(`should detect and merge with existing keys`, () => {
-        let oldies = _.map(oldCredentials, x => JSON.parse(x.blob));
-
+        let oldies = _.map(oldCredentials, (x) => JSON.parse(x.blob));
 
         // Create some keys.
         oldies[0] = _.clone(oldies[2]);
@@ -5346,12 +6014,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         imported.credentials[2].keyId.should.equal(k);
 
         // the resulting key should be returned
-        _.filter(imported.keys, x => x.id == k).length.should.equal(1);
+        _.filter(imported.keys, (x) => x.id == k).length.should.equal(1);
       });
 
-
       it(`should detect and merge with existing keys (2 wallets)`, () => {
-        let oldies = _.map(oldCredentials, x => JSON.parse(x.blob));
+        let oldies = _.map(oldCredentials, (x) => JSON.parse(x.blob));
         oldies = oldies.splice(0, 2);
 
         // Create some keys.
@@ -5367,7 +6034,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         imported.credentials[1].keyId.should.equal(k);
 
         // the resulting key should be returned
-        _.filter(imported.keys, x => x.id == k).length.should.equal(1);
+        _.filter(imported.keys, (x) => x.id == k).length.should.equal(1);
       });
     });
   });
@@ -5405,7 +6072,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           var copayerName = c.copayerName;
           var key = c.xPubKey;
 
-          var exported = clients[0].toString()
+          var exported = clients[0].toString();
           importedClient = helpers.newClient(app);
           importedClient.fromString(exported);
           var c2 = importedClient.credentials;
@@ -5425,7 +6092,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           var copayerName = c.copayerName;
           var key = c.xPubKey;
 
-          var exported = clients[0].toString()
+          var exported = clients[0].toString();
           importedClient = helpers.newClient(app);
           importedClient.fromString(exported);
           var c2 = importedClient.credentials;
@@ -5437,8 +6104,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           // Will check addresses on afterEach
           done();
         });
-
-
 
         it('should export & import from Key +  BWS', (done) => {
           var c = clients[0].credentials;
@@ -5473,16 +6138,23 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
       describe('Non-compliant derivation', () => {
         var setup = (done) => {
-          clients[0].createWallet('mywallet', 'creator', 1, 1, {
-            network: 'livenet'
-          }, (err) => {
-            should.not.exist(err);
-            clients[0].createAddress((err, addr) => {
+          clients[0].createWallet(
+            'mywallet',
+            'creator',
+            1,
+            1,
+            {
+              network: 'livenet',
+            },
+            (err) => {
               should.not.exist(err);
-              address = addr.address;
-              done();
-            });
-          });
+              clients[0].createAddress((err, addr) => {
+                should.not.exist(err);
+                address = addr.address;
+                done();
+              });
+            }
+          );
         };
 
         beforeEach(() => {
@@ -5526,8 +6198,14 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             })
           );
 
-          k.get().xPrivKey.should.equal('xprv9s21ZrQH143K3E71Wm5nrxuMdqCTMG6AM5Xyp4dJ3ZkUj2gEpfifT5Hc1cfqnycKooRpzoH4gjmAKDmGGaH2k2cSe29EcQSarveq6STBZZW');
-          clients[0].credentials.xPubKey.toString().should.equal('xpub6CLj2x8T5zwngq3Uq42PbXbAXnyaUtsANEZaBjAPNBn5PbhSJM29DM5nhrdJDNpEy9X3n5sQhk6CNA7PKTp48Xvq3QFdiYAXAcaWEJ6Xmug');
+          k.get().xPrivKey.should.equal(
+            'xprv9s21ZrQH143K3E71Wm5nrxuMdqCTMG6AM5Xyp4dJ3ZkUj2gEpfifT5Hc1cfqnycKooRpzoH4gjmAKDmGGaH2k2cSe29EcQSarveq6STBZZW'
+          );
+          clients[0].credentials.xPubKey
+            .toString()
+            .should.equal(
+              'xpub6CLj2x8T5zwngq3Uq42PbXbAXnyaUtsANEZaBjAPNBn5PbhSJM29DM5nhrdJDNpEy9X3n5sQhk6CNA7PKTp48Xvq3QFdiYAXAcaWEJ6Xmug'
+            );
           setup(() => {
             importedClient = helpers.newClient(app);
             let k2 = Key.fromMnemonic('pink net pet stove boy receive task nephew book spawn pull regret', {
@@ -5549,7 +6227,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
 
         it('should check BWS once if specific derivation is not problematic', (done) => {
-
           // this key derivation is equal for compliant and non-compliant
           let k = Key.fromMnemonic('relax about label gentle insect cross summer helmet come price elephant seek', {
             nonCompliantDerivation: true,
@@ -5587,7 +6264,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       });
     });
 
-
     describe('#validateKeyDerivation', () => {
       beforeEach((done) => {
         helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
@@ -5598,7 +6274,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         let x = Utils.signMessage;
         Utils.signMessage = () => {
           return 'xxxx';
-        }
+        };
         clients[0].validateKeyDerivation({}, (err, isValid) => {
           should.not.exist(err);
           isValid.should.be.false;
@@ -5649,7 +6325,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
       });
 
-
       it('should be able to gain access to a 1-1 wallet from mnemonic', (done) => {
         helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
           var words = keys[0].get(null, true).mnemonic;
@@ -5659,103 +6334,117 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           clients[0].createAddress((err, addr) => {
             should.not.exist(err);
             should.exist(addr);
-            Client.serverAssistedImport({ words }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              should.not.exist(err);
-              c.length.should.equal(1);
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
+            Client.serverAssistedImport(
+              { words },
+              {
+                clientFactory: () => {
+                  return helpers.newClient(app);
+                },
+              },
+              (err, k, c) => {
                 should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.getMainAddresses({}, (err, list) => {
+                c.length.should.equal(1);
+                let recoveryClient = c[0];
+                recoveryClient.openWallet((err) => {
                   should.not.exist(err);
-                  should.exist(list);
-                  list[0].address.should.equal(addr.address);
-                  done();
+                  recoveryClient.credentials.walletName.should.equal(walletName);
+                  recoveryClient.credentials.copayerName.should.equal(copayerName);
+                  recoveryClient.getMainAddresses({}, (err, list) => {
+                    should.not.exist(err);
+                    should.exist(list);
+                    list[0].address.should.equal(addr.address);
+                    done();
+                  });
                 });
-              });
-            });
+              }
+            );
           });
         });
       });
 
       it('should be able to gain access to tokens wallets from mnemonic', (done) => {
-        helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: 'eth'}, () => {
+        helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: 'eth' }, () => {
           var words = keys[0].get(null, true).mnemonic;
           var walletName = clients[0].credentials.walletName;
           var copayerName = clients[0].credentials.copayerName;
 
-          clients[0].savePreferences({tokenAddresses:['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', '0x056fd409e1d7a124bd7017459dfea2f387b6d5cd']}, (err) => { 
-            should.not.exist(err);
-            Client.serverAssistedImport({ words }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              // the eth wallet + 2 tokens.
-              c.length.should.equal(3);
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
-                should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.credentials.coin.should.equal('eth');
-                let recoveryClient2 = c[2] ;
-                recoveryClient2.openWallet((err) => {
-                  should.not.exist(err);
-                  recoveryClient2.credentials.coin.should.equal('gusd');
-                  done();
-                });
-              });
-            });
-          });
+          clients[0].savePreferences(
+            {
+              tokenAddresses: [
+                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                '0x056fd409e1d7a124bd7017459dfea2f387b6d5cd',
+              ],
+            },
+            (err) => {
+              should.not.exist(err);
+              Client.serverAssistedImport(
+                { words },
+                {
+                  clientFactory: () => {
+                    return helpers.newClient(app);
+                  },
+                },
+                (err, k, c) => {
+                  // the eth wallet + 2 tokens.
+                  c.length.should.equal(3);
+                  let recoveryClient = c[0];
+                  recoveryClient.openWallet((err) => {
+                    should.not.exist(err);
+                    recoveryClient.credentials.walletName.should.equal(walletName);
+                    recoveryClient.credentials.copayerName.should.equal(copayerName);
+                    recoveryClient.credentials.coin.should.equal('eth');
+                    let recoveryClient2 = c[2];
+                    recoveryClient2.openWallet((err) => {
+                      should.not.exist(err);
+                      recoveryClient2.credentials.coin.should.equal('gusd');
+                      done();
+                    });
+                  });
+                }
+              );
+            }
+          );
         });
       });
-
 
       it('should be able to gain access to tokens wallets from mnemonic (Case 2)', (done) => {
-        helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: 'eth'}, () => {
+        helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: 'eth' }, () => {
           var words = keys[0].get(null, true).mnemonic;
           var walletName = clients[0].credentials.walletName;
           var copayerName = clients[0].credentials.copayerName;
 
-          clients[0].savePreferences({tokenAddresses:['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48']}, (err) => { 
+          clients[0].savePreferences({ tokenAddresses: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'] }, (err) => {
             should.not.exist(err);
-            Client.serverAssistedImport({ words }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              // the eth wallet + 1 token.
-              c.length.should.equal(2);
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
-                should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.credentials.coin.should.equal('eth');
-                let recoveryClient2 = c[1] ;
-                recoveryClient2.openWallet((err) => {
+            Client.serverAssistedImport(
+              { words },
+              {
+                clientFactory: () => {
+                  return helpers.newClient(app);
+                },
+              },
+              (err, k, c) => {
+                // the eth wallet + 1 token.
+                c.length.should.equal(2);
+                let recoveryClient = c[0];
+                recoveryClient.openWallet((err) => {
                   should.not.exist(err);
-                  recoveryClient2.credentials.coin.should.equal('usdc');
-                  done();
+                  recoveryClient.credentials.walletName.should.equal(walletName);
+                  recoveryClient.credentials.copayerName.should.equal(copayerName);
+                  recoveryClient.credentials.coin.should.equal('eth');
+                  let recoveryClient2 = c[1];
+                  recoveryClient2.openWallet((err) => {
+                    should.not.exist(err);
+                    recoveryClient2.credentials.coin.should.equal('usdc');
+                    done();
+                  });
                 });
-              });
-            });
+              }
+            );
           });
         });
       });
 
-
-
-
-
       it('should be able to gain access to two TESTNET btc/bch 1-1 wallets from mnemonic', (done) => {
-
         let key = Key.create();
         helpers.createAndJoinWallet(clients, keys, 1, 1, { key: key }, () => {
           helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: 'bch', key: key }, () => {
@@ -5765,37 +6454,40 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             clients[0].createAddress((err, addr) => {
               should.not.exist(err);
               should.exist(addr);
-              Client.serverAssistedImport({ words }, {
-                clientFactory: () => {
-                  return helpers.newClient(app)
-                }
-              }, (err, k, c) => {
-                should.not.exist(err);
-                c.length.should.equal(2);
-                c[0].credentials.coin.should.equal('btc');
-                c[1].credentials.coin.should.equal('bch');
-                c[0].credentials.copayerId.should.not.equal(c[1].credentials.copayerId);
-
-                let recoveryClient = c[1];
-                recoveryClient.openWallet((err) => {
+              Client.serverAssistedImport(
+                { words },
+                {
+                  clientFactory: () => {
+                    return helpers.newClient(app);
+                  },
+                },
+                (err, k, c) => {
                   should.not.exist(err);
-                  recoveryClient.credentials.walletName.should.equal(walletName);
-                  recoveryClient.credentials.copayerName.should.equal(copayerName);
-                  recoveryClient.getMainAddresses({}, (err, list) => {
+                  c.length.should.equal(2);
+                  c[0].credentials.coin.should.equal('btc');
+                  c[1].credentials.coin.should.equal('bch');
+                  c[0].credentials.copayerId.should.not.equal(c[1].credentials.copayerId);
+
+                  let recoveryClient = c[1];
+                  recoveryClient.openWallet((err) => {
                     should.not.exist(err);
-                    should.exist(list);
-                    list[0].address.should.equal(addr.address);
-                    done();
+                    recoveryClient.credentials.walletName.should.equal(walletName);
+                    recoveryClient.credentials.copayerName.should.equal(copayerName);
+                    recoveryClient.getMainAddresses({}, (err, list) => {
+                      should.not.exist(err);
+                      should.exist(list);
+                      list[0].address.should.equal(addr.address);
+                      done();
+                    });
                   });
-                });
-              });
+                }
+              );
             });
           });
         });
       });
 
       it('should be able to gain access to two TESTNET btc/bch 1-1 wallets from mnemonic', (done) => {
-
         let key = Key.create();
         helpers.createAndJoinWallet(clients, keys, 1, 1, { key: key, network: 'livenet' }, () => {
           helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: 'bch', key: key, network: 'livenet' }, () => {
@@ -5805,37 +6497,37 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             clients[0].createAddress((err, addr) => {
               should.not.exist(err);
               should.exist(addr);
-              Client.serverAssistedImport({ words }, {
-                clientFactory: () => {
-                  return helpers.newClient(app)
-                }
-              }, (err, k, c) => {
-                should.not.exist(err);
-                c.length.should.equal(2);
-                c[0].credentials.coin.should.equal('btc');
-                c[1].credentials.coin.should.equal('bch');
-                c[0].credentials.copayerId.should.not.equal(c[1].credentials.copayerId);
-                let recoveryClient = c[1];
-                recoveryClient.openWallet((err) => {
+              Client.serverAssistedImport(
+                { words },
+                {
+                  clientFactory: () => {
+                    return helpers.newClient(app);
+                  },
+                },
+                (err, k, c) => {
                   should.not.exist(err);
-                  recoveryClient.credentials.walletName.should.equal(walletName);
-                  recoveryClient.credentials.copayerName.should.equal(copayerName);
-                  recoveryClient.getMainAddresses({}, (err, list) => {
+                  c.length.should.equal(2);
+                  c[0].credentials.coin.should.equal('btc');
+                  c[1].credentials.coin.should.equal('bch');
+                  c[0].credentials.copayerId.should.not.equal(c[1].credentials.copayerId);
+                  let recoveryClient = c[1];
+                  recoveryClient.openWallet((err) => {
                     should.not.exist(err);
-                    should.exist(list);
-                    list[0].address.should.equal(addr.address);
-                    done();
+                    recoveryClient.credentials.walletName.should.equal(walletName);
+                    recoveryClient.credentials.copayerName.should.equal(copayerName);
+                    recoveryClient.getMainAddresses({}, (err, list) => {
+                      should.not.exist(err);
+                      should.exist(list);
+                      list[0].address.should.equal(addr.address);
+                      done();
+                    });
                   });
-                });
-              });
+                }
+              );
             });
           });
         });
       });
-
-
-
-
 
       it('should be able to gain access to a 1-1 wallet from mnemonic with passphrase', (done) => {
         let passphrase = 'xxx';
@@ -5846,32 +6538,34 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           clients[0].createAddress((err, addr) => {
             should.not.exist(err);
             should.exist(addr);
-            Client.serverAssistedImport({ words, passphrase }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              should.not.exist(err);
-              c.length.should.equal(1);
-
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
+            Client.serverAssistedImport(
+              { words, passphrase },
+              {
+                clientFactory: () => {
+                  return helpers.newClient(app);
+                },
+              },
+              (err, k, c) => {
                 should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.getMainAddresses({}, (err, list) => {
+                c.length.should.equal(1);
+
+                let recoveryClient = c[0];
+                recoveryClient.openWallet((err) => {
                   should.not.exist(err);
-                  should.exist(list);
-                  list[0].address.should.equal(addr.address);
-                  done();
+                  recoveryClient.credentials.walletName.should.equal(walletName);
+                  recoveryClient.credentials.copayerName.should.equal(copayerName);
+                  recoveryClient.getMainAddresses({}, (err, list) => {
+                    should.not.exist(err);
+                    should.exist(list);
+                    list[0].address.should.equal(addr.address);
+                    done();
+                  });
                 });
-              });
-            });
+              }
+            );
           });
         });
       });
-
-
 
       it('should be able to gain access to a 1-1 wallet with just the xPriv', (done) => {
         helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
@@ -5881,30 +6575,34 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           clients[0].createAddress((err, addr) => {
             should.not.exist(err);
             should.exist(addr);
-            Client.serverAssistedImport({ xPrivKey }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              k.xPrivKey.should.equal(xPrivKey);
-              k.compliantDerivation.should.equal(true);
-              k.use0forBCH.should.equal(false);
-              k.use44forMultisig.should.equal(false);
-              should.not.exist(err);
-              c.length.should.equal(1);
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
+            Client.serverAssistedImport(
+              { xPrivKey },
+              {
+                clientFactory: () => {
+                  return helpers.newClient(app);
+                },
+              },
+              (err, k, c) => {
+                k.xPrivKey.should.equal(xPrivKey);
+                k.compliantDerivation.should.equal(true);
+                k.use0forBCH.should.equal(false);
+                k.use44forMultisig.should.equal(false);
                 should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.getMainAddresses({}, (err, list) => {
+                c.length.should.equal(1);
+                let recoveryClient = c[0];
+                recoveryClient.openWallet((err) => {
                   should.not.exist(err);
-                  should.exist(list);
-                  list[0].address.should.equal(addr.address);
-                  done();
+                  recoveryClient.credentials.walletName.should.equal(walletName);
+                  recoveryClient.credentials.copayerName.should.equal(copayerName);
+                  recoveryClient.getMainAddresses({}, (err, list) => {
+                    should.not.exist(err);
+                    should.exist(list);
+                    list[0].address.should.equal(addr.address);
+                    done();
+                  });
                 });
-              });
-            });
+              }
+            );
           });
         });
       });
@@ -5917,31 +6615,35 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           clients[0].createAddress((err, addr) => {
             should.not.exist(err);
             should.exist(addr);
-            Client.serverAssistedImport({ words }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              k.compliantDerivation.should.equal(true);
-              k.use0forBCH.should.equal(false);
-              k.use44forMultisig.should.equal(false);
-              should.not.exist(err);
-              c.length.should.equal(1);
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
+            Client.serverAssistedImport(
+              { words },
+              {
+                clientFactory: () => {
+                  return helpers.newClient(app);
+                },
+              },
+              (err, k, c) => {
+                k.compliantDerivation.should.equal(true);
+                k.use0forBCH.should.equal(false);
+                k.use44forMultisig.should.equal(false);
                 should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.credentials.m.should.equal(2);
-                recoveryClient.credentials.n.should.equal(2);
-                recoveryClient.getMainAddresses({}, (err, list) => {
+                c.length.should.equal(1);
+                let recoveryClient = c[0];
+                recoveryClient.openWallet((err) => {
                   should.not.exist(err);
-                  should.exist(list);
-                  list[0].address.should.equal(addr.address);
-                  done();
+                  recoveryClient.credentials.walletName.should.equal(walletName);
+                  recoveryClient.credentials.copayerName.should.equal(copayerName);
+                  recoveryClient.credentials.m.should.equal(2);
+                  recoveryClient.credentials.n.should.equal(2);
+                  recoveryClient.getMainAddresses({}, (err, list) => {
+                    should.not.exist(err);
+                    should.exist(list);
+                    list[0].address.should.equal(addr.address);
+                    done();
+                  });
                 });
-              });
-            });
+              }
+            );
           });
         });
       });
@@ -5950,109 +6652,128 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
           var words = Key.create();
           words = words.get().mnemonic;
-          Client.serverAssistedImport({ words }, {
-            clientFactory: () => {
-              return helpers.newClient(app)
+          Client.serverAssistedImport(
+            { words },
+            {
+              clientFactory: () => {
+                return helpers.newClient(app);
+              },
+            },
+            (err, k, c) => {
+              should.not.exist(err);
+              c.length.should.equal(0);
+              done();
             }
-          }, (err, k, c) => {
-            should.not.exist(err);
-            c.length.should.equal(0);
-            done();
-          });
+          );
         });
       });
 
-
-      it('should be able to gain access to a OLD 44\' 2-2 wallet from mnemonic', function (done) {
-        helpers.createAndJoinWallet(clients, keys, 2, 2, {
-          useLegacyPurpose: true,
-        }, () => {
-          var words = keys[0].get(null, true).mnemonic;
-          var walletName = clients[0].credentials.walletName;
-          var copayerName = clients[0].credentials.copayerName;
-          clients[0].createAddress((err, addr) => {
-            should.not.exist(err);
-            should.exist(addr);
-            Client.serverAssistedImport({ words }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              should.exist(k);
-              should.exist(c[0]);
-              k.compliantDerivation.should.equal(true);
-              k.use0forBCH.should.equal(false);
-              k.use44forMultisig.should.equal(true);
-
-
+      it("should be able to gain access to a OLD 44' 2-2 wallet from mnemonic", function (done) {
+        helpers.createAndJoinWallet(
+          clients,
+          keys,
+          2,
+          2,
+          {
+            useLegacyPurpose: true,
+          },
+          () => {
+            var words = keys[0].get(null, true).mnemonic;
+            var walletName = clients[0].credentials.walletName;
+            var copayerName = clients[0].credentials.copayerName;
+            clients[0].createAddress((err, addr) => {
               should.not.exist(err);
-              c.length.should.equal(1);
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
-                should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.credentials.m.should.equal(2);
-                recoveryClient.credentials.n.should.equal(2);
-                recoveryClient.getMainAddresses({}, (err, list) => {
+              should.exist(addr);
+              Client.serverAssistedImport(
+                { words },
+                {
+                  clientFactory: () => {
+                    return helpers.newClient(app);
+                  },
+                },
+                (err, k, c) => {
+                  should.exist(k);
+                  should.exist(c[0]);
+                  k.compliantDerivation.should.equal(true);
+                  k.use0forBCH.should.equal(false);
+                  k.use44forMultisig.should.equal(true);
+
                   should.not.exist(err);
-                  should.exist(list);
-                  list[0].address.should.equal(addr.address);
-                  done();
-                });
-              });
+                  c.length.should.equal(1);
+                  let recoveryClient = c[0];
+                  recoveryClient.openWallet((err) => {
+                    should.not.exist(err);
+                    recoveryClient.credentials.walletName.should.equal(walletName);
+                    recoveryClient.credentials.copayerName.should.equal(copayerName);
+                    recoveryClient.credentials.m.should.equal(2);
+                    recoveryClient.credentials.n.should.equal(2);
+                    recoveryClient.getMainAddresses({}, (err, list) => {
+                      should.not.exist(err);
+                      should.exist(list);
+                      list[0].address.should.equal(addr.address);
+                      done();
+                    });
+                  });
+                }
+              );
             });
-          });
-        });
+          }
+        );
       });
 
-
-
-
-      it('should be able to gain access to a OLD 44\' 2-3 wallet from mnemonic', function (done) {
+      it("should be able to gain access to a OLD 44' 2-3 wallet from mnemonic", function (done) {
         this.timeout(5000);
-        helpers.createAndJoinWallet(clients, keys, 2, 3, {
-          useLegacyPurpose: true,
-        }, () => {
-          var words = keys[0].get(null, true).mnemonic;
-          var walletName = clients[0].credentials.walletName;
-          var copayerName = clients[0].credentials.copayerName;
-          clients[0].createAddress((err, addr) => {
-            should.not.exist(err);
-            should.exist(addr);
-            Client.serverAssistedImport({ words }, {
-              clientFactory: () => {
-                return helpers.newClient(app)
-              }
-            }, (err, k, c) => {
-              should.exist(k);
-              should.exist(c[0]);
-              k.compliantDerivation.should.equal(true);
-              k.use0forBCH.should.equal(false);
-              k.use44forMultisig.should.equal(true);
-
-
+        helpers.createAndJoinWallet(
+          clients,
+          keys,
+          2,
+          3,
+          {
+            useLegacyPurpose: true,
+          },
+          () => {
+            var words = keys[0].get(null, true).mnemonic;
+            var walletName = clients[0].credentials.walletName;
+            var copayerName = clients[0].credentials.copayerName;
+            clients[0].createAddress((err, addr) => {
               should.not.exist(err);
-              c.length.should.equal(1);
-              let recoveryClient = c[0];
-              recoveryClient.openWallet((err) => {
-                should.not.exist(err);
-                recoveryClient.credentials.walletName.should.equal(walletName);
-                recoveryClient.credentials.copayerName.should.equal(copayerName);
-                recoveryClient.credentials.m.should.equal(2);
-                recoveryClient.credentials.n.should.equal(3);
-                recoveryClient.getMainAddresses({}, (err, list) => {
-                  should.not.exist(err);
-                  should.exist(list);
-                  list[0].address.should.equal(addr.address);
-                  done();
-                });
-              });
-            });
-          });
-        });
-      });
+              should.exist(addr);
+              Client.serverAssistedImport(
+                { words },
+                {
+                  clientFactory: () => {
+                    return helpers.newClient(app);
+                  },
+                },
+                (err, k, c) => {
+                  should.exist(k);
+                  should.exist(c[0]);
+                  k.compliantDerivation.should.equal(true);
+                  k.use0forBCH.should.equal(false);
+                  k.use44forMultisig.should.equal(true);
 
+                  should.not.exist(err);
+                  c.length.should.equal(1);
+                  let recoveryClient = c[0];
+                  recoveryClient.openWallet((err) => {
+                    should.not.exist(err);
+                    recoveryClient.credentials.walletName.should.equal(walletName);
+                    recoveryClient.credentials.copayerName.should.equal(copayerName);
+                    recoveryClient.credentials.m.should.equal(2);
+                    recoveryClient.credentials.n.should.equal(3);
+                    recoveryClient.getMainAddresses({}, (err, list) => {
+                      should.not.exist(err);
+                      should.exist(list);
+                      list[0].address.should.equal(addr.address);
+                      done();
+                    });
+                  });
+                }
+              );
+            });
+          }
+        );
+      });
 
       it('should be able to see txp messages after gaining access', (done) => {
         helpers.createAndJoinWallet(clients, keys, 1, 1, {}, () => {
@@ -6070,25 +6791,28 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
               should.not.exist(err);
 
-
-              Client.serverAssistedImport({ xPrivKey }, {
-                clientFactory: () => {
-                  return helpers.newClient(app)
-                }
-              }, (err, k, c) => {
-                should.not.exist(err);
-                c.length.should.equal(1);
-                let recoveryClient = c[0];
-                recoveryClient.openWallet((err) => {
+              Client.serverAssistedImport(
+                { xPrivKey },
+                {
+                  clientFactory: () => {
+                    return helpers.newClient(app);
+                  },
+                },
+                (err, k, c) => {
                   should.not.exist(err);
-                  recoveryClient.credentials.walletName.should.equal(walletName);
-                  recoveryClient.getTx(x.id, (err, x2) => {
+                  c.length.should.equal(1);
+                  let recoveryClient = c[0];
+                  recoveryClient.openWallet((err) => {
                     should.not.exist(err);
-                    x2.message.should.equal(opts.message);
-                    done();
+                    recoveryClient.credentials.walletName.should.equal(walletName);
+                    recoveryClient.getTx(x.id, (err, x2) => {
+                      should.not.exist(err);
+                      x2.message.should.equal(opts.message);
+                      done();
+                    });
                   });
-                });
-              });
+                }
+              );
             });
           });
         });
@@ -6106,56 +6830,61 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
             var newApp;
             var expressApp = new ExpressApp();
-            expressApp.start({
-              storage: storage,
-              blockchainExplorer: blockchainExplorerMock,
-              disableLogs: true,
-            }, () => {
-              newApp = expressApp.app;
+            expressApp.start(
+              {
+                storage: storage,
+                blockchainExplorer: blockchainExplorerMock,
+                disableLogs: true,
+              },
+              () => {
+                newApp = expressApp.app;
 
-              var oldPKR = _.clone(clients[0].credentials.publicKeyRing);
-              var recoveryClient = helpers.newClient(newApp);
-              recoveryClient.fromString(clients[0].toString());
+                var oldPKR = _.clone(clients[0].credentials.publicKeyRing);
+                var recoveryClient = helpers.newClient(newApp);
+                recoveryClient.fromString(clients[0].toString());
 
-              recoveryClient.getStatus({}, (err, status) => {
-                should.exist(err);
-                err.should.be.an.instanceOf(Errors.NOT_AUTHORIZED);
-                var spy = sinon.spy(recoveryClient.request, 'post');
-                recoveryClient.recreateWallet((err) => {
-                  should.not.exist(err);
-
-                  // Do not send wallet name and copayer names in clear text
-                  var url = spy.getCall(0).args[0];
-                  var body = JSON.stringify(spy.getCall(0).args[1]);
-                  url.should.contain('/wallets');
-                  body.should.not.contain('mywallet');
-                  var url = spy.getCall(1).args[0];
-                  var body = JSON.stringify(spy.getCall(1).args[1]);
-                  url.should.contain('/copayers');
-                  body.should.not.contain('creator');
-                  body.should.not.contain('copayer 1');
-
-                  recoveryClient.getStatus({}, (err, status) => {
+                recoveryClient.getStatus({}, (err, status) => {
+                  should.exist(err);
+                  err.should.be.an.instanceOf(Errors.NOT_AUTHORIZED);
+                  var spy = sinon.spy(recoveryClient.request, 'post');
+                  recoveryClient.recreateWallet((err) => {
                     should.not.exist(err);
-                    status.wallet.name.should.equal('mywallet');
-                    _.difference(_.map(status.wallet.copayers, 'name'), ['creator', 'copayer 1']).length.should.equal(0);
-                    recoveryClient.createAddress((err, addr2) => {
-                      should.not.exist(err);
-                      should.exist(addr2);
-                      addr2.address.should.equal(addr.address);
-                      addr2.path.should.equal(addr.path);
 
-                      var recoveryClient2 = helpers.newClient(newApp);
-                      recoveryClient2.fromString(clients[1].toString());
-                      recoveryClient2.getStatus({}, (err, status) => {
+                    // Do not send wallet name and copayer names in clear text
+                    var url = spy.getCall(0).args[0];
+                    var body = JSON.stringify(spy.getCall(0).args[1]);
+                    url.should.contain('/wallets');
+                    body.should.not.contain('mywallet');
+                    var url = spy.getCall(1).args[0];
+                    var body = JSON.stringify(spy.getCall(1).args[1]);
+                    url.should.contain('/copayers');
+                    body.should.not.contain('creator');
+                    body.should.not.contain('copayer 1');
+
+                    recoveryClient.getStatus({}, (err, status) => {
+                      should.not.exist(err);
+                      status.wallet.name.should.equal('mywallet');
+                      _.difference(_.map(status.wallet.copayers, 'name'), ['creator', 'copayer 1']).length.should.equal(
+                        0
+                      );
+                      recoveryClient.createAddress((err, addr2) => {
                         should.not.exist(err);
-                        done();
+                        should.exist(addr2);
+                        addr2.address.should.equal(addr.address);
+                        addr2.path.should.equal(addr.path);
+
+                        var recoveryClient2 = helpers.newClient(newApp);
+                        recoveryClient2.fromString(clients[1].toString());
+                        recoveryClient2.getStatus({}, (err, status) => {
+                          should.not.exist(err);
+                          done();
+                        });
                       });
                     });
                   });
                 });
-              });
-            });
+              }
+            );
           });
         });
       });
@@ -6173,11 +6902,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             });
             var newApp;
             var expressApp = new ExpressApp();
-            expressApp.start({
-              storage: storage,
-              blockchainExplorer: blockchainExplorerMock,
-              disableLogs: true,
-            },
+            expressApp.start(
+              {
+                storage: storage,
+                blockchainExplorer: blockchainExplorerMock,
+                disableLogs: true,
+              },
               () => {
                 newApp = expressApp.app;
 
@@ -6194,25 +6924,30 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                       recoveryClient.startScan({}, (err) => {
                         should.not.exist(err);
                         var balance = 0;
-                        async.whilst(() => {
-                          return balance == 0;
-                        }, (next) => {
-                          setTimeout(() => {
-                            recoveryClient.getBalance({}, (err, b) => {
-                              balance = b.totalAmount;
-                              next(err);
-                            });
-                          }, 200);
-                        }, (err) => {
-                          should.not.exist(err);
-                          balance.should.equal(1e8);
-                          done();
-                        });
+                        async.whilst(
+                          () => {
+                            return balance == 0;
+                          },
+                          (next) => {
+                            setTimeout(() => {
+                              recoveryClient.getBalance({}, (err, b) => {
+                                balance = b.totalAmount;
+                                next(err);
+                              });
+                            }, 200);
+                          },
+                          (err) => {
+                            should.not.exist(err);
+                            balance.should.equal(1e8);
+                            done();
+                          }
+                        );
                       });
                     });
                   });
                 });
-              });
+              }
+            );
           });
         });
       });
@@ -6228,11 +6963,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             });
             var newApp;
             var expressApp = new ExpressApp();
-            expressApp.start({
-              storage: storage,
-              blockchainExplorer: blockchainExplorerMock,
-              disableLogs: true,
-            },
+            expressApp.start(
+              {
+                storage: storage,
+                blockchainExplorer: blockchainExplorerMock,
+                disableLogs: true,
+              },
               () => {
                 newApp = expressApp.app;
 
@@ -6249,7 +6985,10 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                       should.not.exist(err);
                       recoveryClient.getStatus({}, (err, status) => {
                         should.not.exist(err);
-                        _.difference(_.map(status.wallet.copayers, 'name'), ['creator', 'copayer 1']).length.should.equal(0);
+                        _.difference(_.map(status.wallet.copayers, 'name'), [
+                          'creator',
+                          'copayer 1',
+                        ]).length.should.equal(0);
                         recoveryClient.createAddress((err, addr2) => {
                           should.not.exist(err);
                           should.exist(addr2);
@@ -6267,13 +7006,16 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
                     });
                   });
                 });
-              });
+              }
+            );
           });
         });
       });
 
       it('should be able to recreate 1-of-1 wallet with account 2', (done) => {
-        let k = Key.fromExtendedPrivateKey('tprv8ZgxMBicQKsPdeZR4tV14PAJmzrWGsmafRVaHXUVYezrSbtnFM1CnqdbQuXfmSLxwr71axKewd3LTRDcQmtttUnZe27TQoGmGMeddv1H9JQ');
+        let k = Key.fromExtendedPrivateKey(
+          'tprv8ZgxMBicQKsPdeZR4tV14PAJmzrWGsmafRVaHXUVYezrSbtnFM1CnqdbQuXfmSLxwr71axKewd3LTRDcQmtttUnZe27TQoGmGMeddv1H9JQ'
+        );
         clients[0].fromString(
           k.createCredentials(null, {
             coin: 'btc',
@@ -6283,59 +7025,70 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           })
         );
 
-        clients[0].createWallet('mywallet', 'creator', 1, 1, {
-          network: 'testnet'
-        }, (err, secret) => {
-          should.not.exist(err);
-
-          clients[0].createAddress((err, addr) => {
+        clients[0].createWallet(
+          'mywallet',
+          'creator',
+          1,
+          1,
+          {
+            network: 'testnet',
+          },
+          (err, secret) => {
             should.not.exist(err);
-            should.exist(addr);
 
-            var storage = new Storage({
-              db: db2,
-            });
+            clients[0].createAddress((err, addr) => {
+              should.not.exist(err);
+              should.exist(addr);
 
-            var newApp;
-            var expressApp = new ExpressApp();
-            expressApp.start({
-              storage: storage,
-              blockchainExplorer: blockchainExplorerMock,
-              disableLogs: true,
-            }, () => {
-              newApp = expressApp.app;
+              var storage = new Storage({
+                db: db2,
+              });
 
-              var oldPKR = _.clone(clients[0].credentials.publicKeyRing);
-              var recoveryClient = helpers.newClient(newApp);
-              recoveryClient.fromString(clients[0].toString());
-              recoveryClient.credentials.account.should.equal(2);
-              recoveryClient.credentials.rootPath.should.equal('m/44\'/1\'/2\'');
-              recoveryClient.getStatus({}, (err, status) => {
-                should.exist(err);
-                err.should.be.an.instanceOf(Errors.NOT_AUTHORIZED);
-                recoveryClient.recreateWallet((err) => {
-                  should.not.exist(err);
+              var newApp;
+              var expressApp = new ExpressApp();
+              expressApp.start(
+                {
+                  storage: storage,
+                  blockchainExplorer: blockchainExplorerMock,
+                  disableLogs: true,
+                },
+                () => {
+                  newApp = expressApp.app;
+
+                  var oldPKR = _.clone(clients[0].credentials.publicKeyRing);
+                  var recoveryClient = helpers.newClient(newApp);
+                  recoveryClient.fromString(clients[0].toString());
+                  recoveryClient.credentials.account.should.equal(2);
+                  recoveryClient.credentials.rootPath.should.equal("m/44'/1'/2'");
                   recoveryClient.getStatus({}, (err, status) => {
-                    should.not.exist(err);
-                    recoveryClient.createAddress((err, addr2) => {
+                    should.exist(err);
+                    err.should.be.an.instanceOf(Errors.NOT_AUTHORIZED);
+                    recoveryClient.recreateWallet((err) => {
                       should.not.exist(err);
-                      should.exist(addr2);
-                      addr2.address.should.equal(addr.address);
-                      addr2.path.should.equal(addr.path);
-                      done();
+                      recoveryClient.getStatus({}, (err, status) => {
+                        should.not.exist(err);
+                        recoveryClient.createAddress((err, addr2) => {
+                          should.not.exist(err);
+                          should.exist(addr2);
+                          addr2.address.should.equal(addr.address);
+                          addr2.path.should.equal(addr.path);
+                          done();
+                        });
+                      });
                     });
                   });
-                });
-              });
+                }
+              );
             });
-          });
-        });
+          }
+        );
       });
     });
   });
 
   describe('Mobility, backup & restore BCH ONLY', () => {
-    var importedClient = null, address;
+    var importedClient = null,
+      address;
 
     beforeEach(() => {
       importedClient = null;
@@ -6345,15 +7098,19 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       this.timeout(5000);
 
       var check = (x) => {
-        x.credentials.rootPath.should.equal('m/44\'/0\'/0\'');
-        x.credentials.xPubKey.toString().should.equal('xpub6DJEsBSYZrjsrHssifihdekpoWcKRHR6WVfbyk6Hhq1HxZSDoyEvT2pMHmSnNKEvdQNmfVqn1Ef1yWgYcrnhc3mSegUCbMvVJCPLYJ1PNen');
+        x.credentials.rootPath.should.equal("m/44'/0'/0'");
+        x.credentials.xPubKey
+          .toString()
+          .should.equal(
+            'xpub6DJEsBSYZrjsrHssifihdekpoWcKRHR6WVfbyk6Hhq1HxZSDoyEvT2pMHmSnNKEvdQNmfVqn1Ef1yWgYcrnhc3mSegUCbMvVJCPLYJ1PNen'
+          );
       };
 
       var m = 'pink net pet stove boy receive task nephew book spawn pull regret';
       // first create a "old" bch wallet (coin = 0).
       //
       let k = Key.fromMnemonic(m, {
-        useLegacyCoinType: true
+        useLegacyCoinType: true,
       });
       clients[0].fromString(
         k.createCredentials(null, {
@@ -6363,35 +7120,42 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           n: 1,
         })
       );
-      clients[0].createWallet('mywallet', 'creator', 1, 1, {
-        coin: 'bch',
-        network: 'livenet',
-      }, (err, secret) => {
-        should.not.exist(err);
-        clients[0].createAddress((err, x) => {
+      clients[0].createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          coin: 'bch',
+          network: 'livenet',
+        },
+        (err, secret) => {
           should.not.exist(err);
-          address = x.address;
-          var importedClient = helpers.newClient(app);
-          importedClient.fromString(
-            k.createCredentials(null, {
-              coin: 'bch',
-              network: 'livenet',
-              account: 0,
-              n: 1,
-            })
-          );
-          var spy = sinon.spy(importedClient, 'openWallet');
-          importedClient.openWallet((err) => {
+          clients[0].createAddress((err, x) => {
             should.not.exist(err);
-            check(importedClient);
-            importedClient.getMainAddresses({}, (err, x) => {
+            address = x.address;
+            var importedClient = helpers.newClient(app);
+            importedClient.fromString(
+              k.createCredentials(null, {
+                coin: 'bch',
+                network: 'livenet',
+                account: 0,
+                n: 1,
+              })
+            );
+            var spy = sinon.spy(importedClient, 'openWallet');
+            importedClient.openWallet((err) => {
               should.not.exist(err);
-              x[0].address.should.equal(address);
-              done();
+              check(importedClient);
+              importedClient.getMainAddresses({}, (err, x) => {
+                should.not.exist(err);
+                x[0].address.should.equal(address);
+                done();
+              });
             });
           });
-        });
-      });
+        }
+      );
     });
   });
 
@@ -6399,10 +7163,10 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
     it('should create wallet in proxy from airgapped', (done) => {
       var airgapped = new Client();
       airgapped.seedFromRandom({
-        network: 'testnet'
+        network: 'testnet',
       });
       var exported = airgapped.toString({
-        noSign: true
+        noSign: true,
       });
 
       var proxy = helpers.newClient(app);
@@ -6410,25 +7174,32 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       should.not.exist(proxy.credentials.xPrivKey);
 
       var seedSpy = sinon.spy(proxy, 'seedFromRandom');
-      proxy.createWallet('mywallet', 'creator', 1, 1, {
-        network: 'testnet'
-      }, (err) => {
-        should.not.exist(err);
-        seedSpy.called.should.be.false;
-        proxy.getStatus({}, (err, status) => {
+      proxy.createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          network: 'testnet',
+        },
+        (err) => {
           should.not.exist(err);
-          status.wallet.name.should.equal('mywallet');
-          done();
-        });
-      });
+          seedSpy.called.should.be.false;
+          proxy.getStatus({}, (err, status) => {
+            should.not.exist(err);
+            status.wallet.name.should.equal('mywallet');
+            done();
+          });
+        }
+      );
     });
     it('should fail to create wallet in proxy from airgapped when networks do not match', (done) => {
       var airgapped = new Client();
       airgapped.seedFromRandom({
-        network: 'testnet'
+        network: 'testnet',
       });
       var exported = airgapped.toString({
-        noSign: true
+        noSign: true,
       });
 
       var proxy = helpers.newClient(app);
@@ -6437,86 +7208,112 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
       var seedSpy = sinon.spy(proxy, 'seedFromRandom');
       should.not.exist(proxy.credentials.xPrivKey);
-      proxy.createWallet('mywallet', 'creator', 1, 1, {
-        network: 'livenet'
-      }, (err) => {
-        should.exist(err);
-        err.message.should.equal('Existing keys were created for a different network');
-        done();
-      });
+      proxy.createWallet(
+        'mywallet',
+        'creator',
+        1,
+        1,
+        {
+          network: 'livenet',
+        },
+        (err) => {
+          should.exist(err);
+          err.message.should.equal('Existing keys were created for a different network');
+          done();
+        }
+      );
     });
     it('should be able to sign from airgapped client and broadcast from proxy', (done) => {
       var airgapped = new Client();
       airgapped.seedFromRandom({
-        network: 'testnet'
+        network: 'testnet',
       });
       var exported = airgapped.toString({
-        noSign: true
+        noSign: true,
       });
 
       var proxy = helpers.newClient(app);
       proxy.fromString(exported);
       should.not.exist(proxy.credentials.xPrivKey);
 
-      async.waterfall([
-
-        (next) => {
-          proxy.createWallet('mywallet', 'creator', 1, 1, {
-            network: 'testnet'
-          }, (err) => {
-            should.not.exist(err);
-            proxy.createAddress((err, address) => {
-              should.not.exist(err);
-              should.exist(address.address);
-              blockchainExplorerMock.setUtxo(address, 1, 1);
-              var opts = {
-                amount: 1200000,
-                toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-                message: 'hello 1-1',
-              };
-              helpers.createAndPublishTxProposal(proxy, opts, next);
-            });
-          });
-        },
-        (txp, next) => {
-          should.exist(txp);
-          proxy.signTxProposal(txp, (err, txp) => {
-            should.exist(err);
-            should.not.exist(txp);
-            err.message.should.equal('Missing private keys to sign.');
-            next(null, txp);
-          });
-        },
-        (txp, next) => {
-          proxy.getTxProposals({
-            forAirGapped: true
-          }, next);
-        },
-        (bundle, next) => {
-          var signatures = airgapped.signTxProposalFromAirGapped(bundle.txps[0], bundle.encryptedPkr, bundle.m, bundle.n);
-          next(null, signatures);
-        },
-        (signatures, next) => {
-          proxy.getTxProposals({}, (err, txps) => {
-            should.not.exist(err);
-            var txp = txps[0];
-            txp.signatures = signatures;
-            async.each(txps, (txp, cb) => {
-              proxy.signTxProposal(txp, (err, txp) => {
+      async.waterfall(
+        [
+          (next) => {
+            proxy.createWallet(
+              'mywallet',
+              'creator',
+              1,
+              1,
+              {
+                network: 'testnet',
+              },
+              (err) => {
                 should.not.exist(err);
-                proxy.broadcastTxProposal(txp, (err, txp) => {
+                proxy.createAddress((err, address) => {
                   should.not.exist(err);
-                  txp.status.should.equal('broadcasted');
-                  should.exist(txp.txid);
-                  cb();
+                  should.exist(address.address);
+                  blockchainExplorerMock.setUtxo(address, 1, 1);
+                  var opts = {
+                    amount: 1200000,
+                    toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+                    message: 'hello 1-1',
+                  };
+                  helpers.createAndPublishTxProposal(proxy, opts, next);
                 });
-              });
-            }, (err) => {
-              next(err);
+              }
+            );
+          },
+          (txp, next) => {
+            should.exist(txp);
+            proxy.signTxProposal(txp, (err, txp) => {
+              should.exist(err);
+              should.not.exist(txp);
+              err.message.should.equal('Missing private keys to sign.');
+              next(null, txp);
             });
-          });
-        },
-      ],
+          },
+          (txp, next) => {
+            proxy.getTxProposals(
+              {
+                forAirGapped: true,
+              },
+              next
+            );
+          },
+          (bundle, next) => {
+            var signatures = airgapped.signTxProposalFromAirGapped(
+              bundle.txps[0],
+              bundle.encryptedPkr,
+              bundle.m,
+              bundle.n
+            );
+            next(null, signatures);
+          },
+          (signatures, next) => {
+            proxy.getTxProposals({}, (err, txps) => {
+              should.not.exist(err);
+              var txp = txps[0];
+              txp.signatures = signatures;
+              async.each(
+                txps,
+                (txp, cb) => {
+                  proxy.signTxProposal(txp, (err, txp) => {
+                    should.not.exist(err);
+                    proxy.broadcastTxProposal(txp, (err, txp) => {
+                      should.not.exist(err);
+                      txp.status.should.equal('broadcasted');
+                      should.exist(txp.txid);
+                      cb();
+                    });
+                  });
+                },
+                (err) => {
+                  next(err);
+                }
+              );
+            });
+          },
+        ],
         (err) => {
           should.not.exist(err);
           done();
@@ -6534,62 +7331,83 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       client.encryptPrivateKey('password');
       client.isPrivKeyEncrypted().should.be.true;
 
-      async.waterfall([
-
-        (next) => {
-          client.createWallet('mywallet', 'creator', 1, 1, {
-            network: 'testnet'
-          }, (err) => {
-            should.not.exist(err);
-            client.createAddress((err, address) => {
-              should.not.exist(err);
-              should.exist(address.address);
-              blockchainExplorerMock.setUtxo(address, 1, 1);
-              var opts = {
-                amount: 1200000,
-                toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-                message: 'hello 1-1',
-              };
-              helpers.createAndPublishTxProposal(client, opts, next);
-            });
-          });
-        },
-        (txp, next) => {
-          should.exist(txp);
-          client.getTxProposals({
-            forAirGapped: true,
-            doNotEncryptPkr: true,
-          }, next);
-        },
-        (bundle, next) => {
-          var signatures = Client.signTxProposalFromAirGapped(mnemonic, bundle.txps[0], bundle.unencryptedPkr, bundle.m, bundle.n, {
-            passphrase: 'passphrase',
-            account: 0,
-            derivationStrategy: 'BIP44'
-          });
-          next(null, signatures);
-        },
-        (signatures, next) => {
-          client.getTxProposals({}, (err, txps) => {
-            should.not.exist(err);
-            var txp = txps[0];
-            txp.signatures = signatures;
-            async.each(txps, (txp, cb) => {
-              client.signTxProposal(txp, (err, txp) => {
+      async.waterfall(
+        [
+          (next) => {
+            client.createWallet(
+              'mywallet',
+              'creator',
+              1,
+              1,
+              {
+                network: 'testnet',
+              },
+              (err) => {
                 should.not.exist(err);
-                client.broadcastTxProposal(txp, (err, txp) => {
+                client.createAddress((err, address) => {
                   should.not.exist(err);
-                  txp.status.should.equal('broadcasted');
-                  should.exist(txp.txid);
-                  cb();
+                  should.exist(address.address);
+                  blockchainExplorerMock.setUtxo(address, 1, 1);
+                  var opts = {
+                    amount: 1200000,
+                    toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+                    message: 'hello 1-1',
+                  };
+                  helpers.createAndPublishTxProposal(client, opts, next);
                 });
-              });
-            }, (err) => {
-              next(err);
+              }
+            );
+          },
+          (txp, next) => {
+            should.exist(txp);
+            client.getTxProposals(
+              {
+                forAirGapped: true,
+                doNotEncryptPkr: true,
+              },
+              next
+            );
+          },
+          (bundle, next) => {
+            var signatures = Client.signTxProposalFromAirGapped(
+              mnemonic,
+              bundle.txps[0],
+              bundle.unencryptedPkr,
+              bundle.m,
+              bundle.n,
+              {
+                passphrase: 'passphrase',
+                account: 0,
+                derivationStrategy: 'BIP44',
+              }
+            );
+            next(null, signatures);
+          },
+          (signatures, next) => {
+            client.getTxProposals({}, (err, txps) => {
+              should.not.exist(err);
+              var txp = txps[0];
+              txp.signatures = signatures;
+              async.each(
+                txps,
+                (txp, cb) => {
+                  client.signTxProposal(txp, (err, txp) => {
+                    should.not.exist(err);
+                    client.broadcastTxProposal(txp, (err, txp) => {
+                      should.not.exist(err);
+                      txp.status.should.equal('broadcasted');
+                      should.exist(txp.txid);
+                      cb();
+                    });
+                  });
+                },
+                (err) => {
+                  next(err);
+                }
+              );
             });
-          });
-        },
-      ],
+          },
+        ],
         (err) => {
           should.not.exist(err);
           done();
@@ -6602,46 +7420,56 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       beforeEach((done) => {
         airgapped = new Client();
         airgapped.seedFromRandom({
-          network: 'testnet'
+          network: 'testnet',
         });
         var exported = airgapped.toString({
-          noSign: true
+          noSign: true,
         });
 
         proxy = helpers.newClient(app);
         proxy.fromString(exported);
         should.not.exist(proxy.credentials.xPrivKey);
 
-        async.waterfall([
-
-          (next) => {
-            proxy.createWallet('mywallet', 'creator', 1, 1, {
-              network: 'testnet'
-            }, (err) => {
-              should.not.exist(err);
-              proxy.createAddress((err, address) => {
-                should.not.exist(err);
-                should.exist(address.address);
-                blockchainExplorerMock.setUtxo(address, 1, 1);
-                var opts = {
-                  amount: 1200000,
-                  toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
-                  message: 'hello 1-1',
-                };
-                helpers.createAndPublishTxProposal(proxy, opts, next);
-              });
-            });
-          },
-          (txp, next) => {
-            proxy.getTxProposals({
-              forAirGapped: true
-            }, (err, result) => {
-              should.not.exist(err);
-              bundle = result;
-              next();
-            });
-          },
-        ],
+        async.waterfall(
+          [
+            (next) => {
+              proxy.createWallet(
+                'mywallet',
+                'creator',
+                1,
+                1,
+                {
+                  network: 'testnet',
+                },
+                (err) => {
+                  should.not.exist(err);
+                  proxy.createAddress((err, address) => {
+                    should.not.exist(err);
+                    should.exist(address.address);
+                    blockchainExplorerMock.setUtxo(address, 1, 1);
+                    var opts = {
+                      amount: 1200000,
+                      toAddress: 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5',
+                      message: 'hello 1-1',
+                    };
+                    helpers.createAndPublishTxProposal(proxy, opts, next);
+                  });
+                }
+              );
+            },
+            (txp, next) => {
+              proxy.getTxProposals(
+                {
+                  forAirGapped: true,
+                },
+                (err, result) => {
+                  should.not.exist(err);
+                  bundle = result;
+                  next();
+                }
+              );
+            },
+          ],
           (err) => {
             should.not.exist(err);
             done();
@@ -6703,7 +7531,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             var c = clients[0].credentials;
 
             // Ggenerate a new priv key, not registered
-            var k = new Bitcore.PrivateKey();
+            var k = new Astracore.PrivateKey();
             c.requestPrivKey = k.toString();
             c.requestPubKey = k.toPublicKey().toString();
             done();
@@ -6724,14 +7552,16 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           keys[0].createAccess(null, {
             path: clients[0].credentials.rootPath,
             requestPrivKey: clients[0].credentials.requestPrivKey,
-          }), (err, x) => {
+          }),
+          (err, x) => {
             should.not.exist(err);
             helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
               should.not.exist(err);
               clients[0].credentials.requestPrivKey.should.be.equal(rk);
               done();
             });
-          });
+          }
+        );
       });
 
       it('should add access with copayer name', (done) => {
@@ -6748,7 +7578,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
           url.should.contain('/copayers');
           body.should.not.contain('pepe');
 
-          var k = new Bitcore.PrivateKey(key);
+          var k = new Astracore.PrivateKey(key);
           var c = clients[0].credentials;
           c.requestPrivKey = k.toString();
           c.requestPubKey = k.toPublicKey().toString();
@@ -6758,7 +7588,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
             var keys = status.wallet.copayers[0].requestPubKeys;
             keys.length.should.equal(2);
             _.filter(keys, {
-              name: 'pepe'
+              name: 'pepe',
             }).length.should.equal(1);
 
             helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
@@ -6790,7 +7620,7 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
 
         clients[0].addAccess(opts2, (err, x, key) => {
-          var k = new Bitcore.PrivateKey(key);
+          var k = new Astracore.PrivateKey(key);
           var c = clients[0].credentials;
           c.requestPrivKey = k.toString();
           c.requestPubKey = k.toPublicKey().toString();
@@ -6817,7 +7647,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         });
       });
 
-
       it('should detect tampered tx proposals of added access (case 1)', (done) => {
         var opts2 = keys[0].createAccess(null, {
           path: clients[0].credentials.rootPath,
@@ -6826,14 +7655,22 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         clients[0].addAccess(opts2, (err, x) => {
           helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
             should.not.exist(err);
-            helpers.tamperResponse(clients[0], 'get', '/v1/txproposals/', {}, (txps) => {
-              txps[0].proposalSignature = '304402206e4a1db06e00068582d3be41cfc795dcf702451c132581e661e7241ef34ca19202203e17598b4764913309897d56446b51bc1dcd41a25d90fdb5f87a6b58fe3a6920';
-            }, () => {
-              clients[0].getTxProposals({}, (err, txps) => {
-                err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-                done();
-              });
-            });
+            helpers.tamperResponse(
+              clients[0],
+              'get',
+              '/v1/txproposals/',
+              {},
+              (txps) => {
+                txps[0].proposalSignature =
+                  '304402206e4a1db06e00068582d3be41cfc795dcf702451c132581e661e7241ef34ca19202203e17598b4764913309897d56446b51bc1dcd41a25d90fdb5f87a6b58fe3a6920';
+              },
+              () => {
+                clients[0].getTxProposals({}, (err, txps) => {
+                  err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+                  done();
+                });
+              }
+            );
           });
         });
       });
@@ -6846,18 +7683,24 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         clients[0].addAccess(opts2, (err, x) => {
           helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
             should.not.exist(err);
-            helpers.tamperResponse(clients[0], 'get', '/v1/txproposals/', {}, (txps) => {
-              txps[0].proposalSignaturePubKey = '02d368d7f03a57b2ad3ad9c2766739da83b85ab9c3718fb02ad36574f9391d6bf6';
-            }, () => {
-              clients[0].getTxProposals({}, (err, txps) => {
-                err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-                done();
-              });
-            });
+            helpers.tamperResponse(
+              clients[0],
+              'get',
+              '/v1/txproposals/',
+              {},
+              (txps) => {
+                txps[0].proposalSignaturePubKey = '02d368d7f03a57b2ad3ad9c2766739da83b85ab9c3718fb02ad36574f9391d6bf6';
+              },
+              () => {
+                clients[0].getTxProposals({}, (err, txps) => {
+                  err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+                  done();
+                });
+              }
+            );
           });
         });
       });
-
 
       it('should detect tampered tx proposals of added access (case 3)', (done) => {
         var opts2 = keys[0].createAccess(null, {
@@ -6867,14 +7710,22 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         clients[0].addAccess(opts2, (err, x) => {
           helpers.createAndPublishTxProposal(clients[0], opts, (err, x) => {
             should.not.exist(err);
-            helpers.tamperResponse(clients[0], 'get', '/v1/txproposals/', {}, (txps) => {
-              txps[0].proposalSignaturePubKeySig = '304402201528748eafc5083fe67c84cbf0eb996eba9a65584a73d8c07ed6e0dc490c195802204f340488266c804cf1033f8b852efd1d4e05d862707c119002dc3fbe7a805c35';
-            }, () => {
-              clients[0].getTxProposals({}, (err, txps) => {
-                err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
-                done();
-              });
-            });
+            helpers.tamperResponse(
+              clients[0],
+              'get',
+              '/v1/txproposals/',
+              {},
+              (txps) => {
+                txps[0].proposalSignaturePubKeySig =
+                  '304402201528748eafc5083fe67c84cbf0eb996eba9a65584a73d8c07ed6e0dc490c195802204f340488266c804cf1033f8b852efd1d4e05d862707c119002dc3fbe7a805c35';
+              },
+              () => {
+                clients[0].getTxProposals({}, (err, txps) => {
+                  err.should.be.an.instanceOf(Errors.SERVER_COMPROMISED);
+                  done();
+                });
+              }
+            );
           });
         });
       });
@@ -6883,39 +7734,50 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
   var addrMap = {
     btc: ['1PuKMvRFfwbLXyEPXZzkGi111gMUCs6uE3', '1GG3JQikGC7wxstyavUBDoCJ66bWLLENZC'],
-    bch: ['qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e', 'qznkyz7hdd3jvkqc76zsf585dcp5czmz5udnlj26ya']
+    bch: ['qran0w2c8x2n4wdr60s4nrle65s745wt4sakf9xa8e', 'qznkyz7hdd3jvkqc76zsf585dcp5czmz5udnlj26ya'],
   };
   _.each(['bch', 'btc'], (coin) => {
     var addr = addrMap[coin];
 
     describe('Sweep paper wallet ' + coin, () => {
-
-
       beforeEach(() => {
-        blockchainExplorerMock.supportsGrouping = () => { return true; }
+        blockchainExplorerMock.supportsGrouping = () => {
+          return true;
+        };
       });
-
 
       afterEach(() => {
-        blockchainExplorerMock.supportsGrouping = () => { return false; }
+        blockchainExplorerMock.supportsGrouping = () => {
+          return false;
+        };
       });
 
-      var B = Bitcore_[coin];
+      var B = Astracore_[coin];
       it.skip('should decrypt bip38 encrypted private key', (done) => {
         this.timeout(60000);
-        clients[0].decryptBIP38PrivateKey('6PfRh9ZnWtiHrGoPPSzXe6iafTXc6FSXDhSBuDvvDmGd1kpX2Gvy1CfTcA', 'passphrase', {}, (err, result) => {
-          should.not.exist(err);
-          result.should.equal('5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp');
-          done();
-        });
+        clients[0].decryptBIP38PrivateKey(
+          '6PfRh9ZnWtiHrGoPPSzXe6iafTXc6FSXDhSBuDvvDmGd1kpX2Gvy1CfTcA',
+          'passphrase',
+          {},
+          (err, result) => {
+            should.not.exist(err);
+            result.should.equal('5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp');
+            done();
+          }
+        );
       });
       it.skip('should fail to decrypt bip38 encrypted private key with incorrect passphrase', (done) => {
         this.timeout(60000);
-        clients[0].decryptBIP38PrivateKey('6PfRh9ZnWtiHrGoPPSzXe6iafTXc6FSXDhSBuDvvDmGd1kpX2Gvy1CfTcA', 'incorrect passphrase', {}, (err, result) => {
-          should.exist(err);
-          err.message.should.contain('passphrase');
-          done();
-        });
+        clients[0].decryptBIP38PrivateKey(
+          '6PfRh9ZnWtiHrGoPPSzXe6iafTXc6FSXDhSBuDvvDmGd1kpX2Gvy1CfTcA',
+          'incorrect passphrase',
+          {},
+          (err, result) => {
+            should.exist(err);
+            err.message.should.contain('passphrase');
+            done();
+          }
+        );
       });
       it('should get balance from single private key', (done) => {
         var address = {
@@ -6925,11 +7787,15 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         };
         helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: coin, network: 'livenet' }, () => {
           blockchainExplorerMock.setUtxo(address, 123, 1);
-          clients[0].getBalanceFromPrivateKey('5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp', coin, (err, balance) => {
-            should.not.exist(err);
-            balance.should.equal(123 * 1e8);
-            done();
-          });
+          clients[0].getBalanceFromPrivateKey(
+            '5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp',
+            coin,
+            (err, balance) => {
+              should.not.exist(err);
+              balance.should.equal(123 * 1e8);
+              done();
+            }
+          );
         });
       });
       it('should build tx for single private key', (done) => {
@@ -6940,18 +7806,23 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         };
         helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: coin, network: 'livenet' }, () => {
           blockchainExplorerMock.setUtxo(address, 123, 1);
-          clients[0].buildTxFromPrivateKey('5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp', addr[1], {
-            coin: coin
-          }, (err, tx) => {
-            should.not.exist(err);
-            should.exist(tx);
-            tx.outputs.length.should.equal(1);
-            var output = tx.outputs[0];
-            output.satoshis.should.equal(123 * 1e8 - 10000);
-            var script = B.Script.buildPublicKeyHashOut(B.Address.fromString(addr[1]));
-            output.script.toString('hex').should.equal(script.toString('hex'));
-            done();
-          });
+          clients[0].buildTxFromPrivateKey(
+            '5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp',
+            addr[1],
+            {
+              coin: coin,
+            },
+            (err, tx) => {
+              should.not.exist(err);
+              should.exist(tx);
+              tx.outputs.length.should.equal(1);
+              var output = tx.outputs[0];
+              output.satoshis.should.equal(123 * 1e8 - 10000);
+              var script = B.Script.buildPublicKeyHashOut(B.Address.fromString(addr[1]));
+              output.script.toString('hex').should.equal(script.toString('hex'));
+              done();
+            }
+          );
         });
       });
 
@@ -6969,15 +7840,20 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         };
         helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: coin, network: 'livenet' }, () => {
           blockchainExplorerMock.setUtxo(address, 123, 1);
-          clients[0].buildTxFromPrivateKey('5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp', addr[1], {
-            coin: coin,
-          }, (err, tx) => {
-            should.exist(err);
-            should.not.exist(tx);
-            err.should.be.an.instanceOf(Errors.COULD_NOT_BUILD_TRANSACTION);
-            sandbox.restore();
-            done();
-          });
+          clients[0].buildTxFromPrivateKey(
+            '5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp',
+            addr[1],
+            {
+              coin: coin,
+            },
+            (err, tx) => {
+              should.exist(err);
+              should.not.exist(tx);
+              err.should.be.an.instanceOf(Errors.COULD_NOT_BUILD_TRANSACTION);
+              sandbox.restore();
+              done();
+            }
+          );
         });
       });
 
@@ -6989,14 +7865,19 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         };
         helpers.createAndJoinWallet(clients, keys, 1, 1, { coin: coin, network: 'livenet' }, () => {
           blockchainExplorerMock.setUtxo(address, 123 / 1e8, 1);
-          clients[0].buildTxFromPrivateKey('5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp', addr[1], {
-            fee: 500,
-            coin: coin,
-          }, (err, tx) => {
-            should.exist(err);
-            err.should.be.an.instanceOf(Errors.INSUFFICIENT_FUNDS);
-            done();
-          });
+          clients[0].buildTxFromPrivateKey(
+            '5KjBgBiadWGhjWmLN1v4kcEZqWSZFqzgv7cSUuZNJg4tD82c4xp',
+            addr[1],
+            {
+              fee: 500,
+              coin: coin,
+            },
+            (err, tx) => {
+              should.exist(err);
+              err.should.be.an.instanceOf(Errors.INSUFFICIENT_FUNDS);
+              done();
+            }
+          );
         });
       });
     });
@@ -7004,29 +7885,47 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
   describe('#formatAmount', () => {
     it('should successfully format amount', () => {
-      var cases = [{
-        args: [1, 'bit'],
-        expected: '0',
-      }, {
-        args: [1, 'bit', {
-          fullPrecision: true
-        }],
-        expected: '0.01',
-      }, {
-        args: [1, 'btc'],
-        expected: '0.00',
-      }, {
-        args: [1, 'btc', {
-          fullPrecision: true
-        }],
-        expected: '0.00000001',
-      }, {
-        args: [1234567899999, 'btc', {
-          thousandsSeparator: ' ',
-          decimalSeparator: ','
-        }],
-        expected: '12 345,678999',
-      },];
+      var cases = [
+        {
+          args: [1, 'bit'],
+          expected: '0',
+        },
+        {
+          args: [
+            1,
+            'bit',
+            {
+              fullPrecision: true,
+            },
+          ],
+          expected: '0.01',
+        },
+        {
+          args: [1, 'btc'],
+          expected: '0.00',
+        },
+        {
+          args: [
+            1,
+            'btc',
+            {
+              fullPrecision: true,
+            },
+          ],
+          expected: '0.00000001',
+        },
+        {
+          args: [
+            1234567899999,
+            'btc',
+            {
+              thousandsSeparator: ' ',
+              decimalSeparator: ',',
+            },
+          ],
+          expected: '12 345,678999',
+        },
+      ];
 
       _.each(cases, (testCase) => {
         Utils.formatAmount.apply(this, testCase.args).should.equal(testCase.expected);
@@ -7042,11 +7941,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var client = new Client();
 
       var _f = sandbox.stub(client, '_fetchLatestNotifications').callsFake((interval, cb) => {
-        cb(new Errors.NOT_FOUND);
+        cb(new Errors.NOT_FOUND());
       });
 
       client._initNotifications({
-        notificationIntervalSeconds: 1
+        notificationIntervalSeconds: 1,
       });
       should.exist(client.notificationsIntervalId);
       clock.tick(1000);
@@ -7062,11 +7961,11 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       var client = new Client();
 
       var _f = sandbox.stub(client, '_fetchLatestNotifications').callsFake((interval, cb) => {
-        cb(new Errors.NOT_AUTHORIZED);
+        cb(new Errors.NOT_AUTHORIZED());
       });
 
       client._initNotifications({
-        notificationIntervalSeconds: 1
+        notificationIntervalSeconds: 1,
       });
       should.exist(client.notificationsIntervalId);
       clock.tick(1000);
@@ -7077,7 +7976,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
   });
 
   describe('Import', () => {
-
     describe('#import', (done) => {
       it('should handle import with invalid JSON', (done) => {
         var importString = 'this is not valid JSON';
@@ -7095,7 +7993,6 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
         }).should.throw(Errors.OBSOLETE_BACKUP);
         done();
       });
-
     });
     describe.skip('#importFromExtendedPublicKey', () => {
       it('should handle importing an invalid extended private key', (done) => {
@@ -7110,35 +8007,55 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
       it('should import with external public key', (done) => {
         var client = helpers.newClient(app);
 
-        client.seedFromExtendedPublicKey('xpub661MyMwAqRbcGVyYUcHbZi9KNhN9Tdj8qHi9ZdoUXP1VeKiXDGGrE9tSoJKYhGFE2rimteYdwvoP6e87zS5LsgcEvsvdrpPBEmeWz9EeAUq', 'ledger', '1a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f00');
+        client.seedFromExtendedPublicKey(
+          'xpub661MyMwAqRbcGVyYUcHbZi9KNhN9Tdj8qHi9ZdoUXP1VeKiXDGGrE9tSoJKYhGFE2rimteYdwvoP6e87zS5LsgcEvsvdrpPBEmeWz9EeAUq',
+          'ledger',
+          '1a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f00'
+        );
 
-        client.createWallet('mywallet', 'creator', 1, 1, {
-          network: 'livenet'
-        }, (err) => {
-          should.not.exist(err);
-          var c = client.credentials;
-          var importedClient = helpers.newClient(app);
-          importedClient.importFromExtendedPublicKey('xpub661MyMwAqRbcGVyYUcHbZi9KNhN9Tdj8qHi9ZdoUXP1VeKiXDGGrE9tSoJKYhGFE2rimteYdwvoP6e87zS5LsgcEvsvdrpPBEmeWz9EeAUq', 'ledger', '1a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f00', {}, (err) => {
+        client.createWallet(
+          'mywallet',
+          'creator',
+          1,
+          1,
+          {
+            network: 'livenet',
+          },
+          (err) => {
             should.not.exist(err);
-            var c2 = importedClient.credentials;
-            c2.account.should.equal(0);
-            c2.xPubKey.should.equal(client.credentials.xPubKey);
-            c2.personalEncryptingKey.should.equal(c.personalEncryptingKey);
-            c2.walletId.should.equal(c.walletId);
-            c2.walletName.should.equal(c.walletName);
-            c2.copayerName.should.equal(c.copayerName);
-            done();
-          });
-        });
+            var c = client.credentials;
+            var importedClient = helpers.newClient(app);
+            importedClient.importFromExtendedPublicKey(
+              'xpub661MyMwAqRbcGVyYUcHbZi9KNhN9Tdj8qHi9ZdoUXP1VeKiXDGGrE9tSoJKYhGFE2rimteYdwvoP6e87zS5LsgcEvsvdrpPBEmeWz9EeAUq',
+              'ledger',
+              '1a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f001a1f00',
+              {},
+              (err) => {
+                should.not.exist(err);
+                var c2 = importedClient.credentials;
+                c2.account.should.equal(0);
+                c2.xPubKey.should.equal(client.credentials.xPubKey);
+                c2.personalEncryptingKey.should.equal(c.personalEncryptingKey);
+                c2.walletId.should.equal(c.walletId);
+                c2.walletName.should.equal(c.walletName);
+                c2.copayerName.should.equal(c.copayerName);
+                done();
+              }
+            );
+          }
+        );
       });
 
       it('should fail to import with external priv key when not enought entropy', () => {
         var client = helpers.newClient(app);
         (() => {
-          client.seedFromExtendedPublicKey('xpub661MyMwAqRbcGVyYUcHbZi9KNhN9Tdj8qHi9ZdoUXP1VeKiXDGGrE9tSoJKYhGFE2rimteYdwvoP6e87zS5LsgcEvsvdrpPBEmeWz9EeAUq', 'ledger', '1a1f00');
+          client.seedFromExtendedPublicKey(
+            'xpub661MyMwAqRbcGVyYUcHbZi9KNhN9Tdj8qHi9ZdoUXP1VeKiXDGGrE9tSoJKYhGFE2rimteYdwvoP6e87zS5LsgcEvsvdrpPBEmeWz9EeAUq',
+            'ledger',
+            '1a1f00'
+          );
         }).should.throw('entropy');
       });
-
     });
   });
 
@@ -7175,11 +8092,18 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
   describe('Single-address wallets', () => {
     beforeEach((done) => {
-      helpers.createAndJoinWallet(clients, keys, 1, 2, {
-        singleAddress: true
-      }, (wallet) => {
-        done();
-      });
+      helpers.createAndJoinWallet(
+        clients,
+        keys,
+        1,
+        2,
+        {
+          singleAddress: true,
+        },
+        (wallet) => {
+          done();
+        }
+      );
     });
     it('should always return same address', (done) => {
       clients[0].createAddress((err, x) => {
@@ -7213,10 +8137,12 @@ describe('client API', function() { // DONT USE LAMBAS HERE!!! https://stackover
 
         var toAddress = 'n2TBMPzPECGUfcT2EByiTJ12TPZkhN2mN5';
         var opts = {
-          outputs: [{
-            amount: 1e8,
-            toAddress: toAddress,
-          }],
+          outputs: [
+            {
+              amount: 1e8,
+              toAddress: toAddress,
+            },
+          ],
           feePerKb: 100e2,
         };
         clients[0].createTxProposal(opts, (err, txp) => {

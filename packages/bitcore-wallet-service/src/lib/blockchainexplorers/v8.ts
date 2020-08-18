@@ -8,12 +8,12 @@ import { Client } from './v8/client';
 
 const $ = require('preconditions').singleton();
 const Common = require('../common');
-const Bitcore = require('bitcore-lib');
-const Bitcore_ = {
-  btc: Bitcore,
-  bch: require('bitcore-lib-cash'),
-  eth: Bitcore,
-  xrp: Bitcore
+const Astracore = require('astracore-lib');
+const Astracore_ = {
+  btc: Astracore,
+  bch: require('astracore-lib-cash'),
+  eth: Astracore,
+  xrp: Astracore,
 };
 const config = require('../../config');
 const Constants = Common.Constants,
@@ -72,7 +72,7 @@ export class V8 {
 
   _getClient() {
     return new this.Client({
-      baseUrl: this.baseUrl
+      baseUrl: this.baseUrl,
     });
   }
 
@@ -80,16 +80,16 @@ export class V8 {
     $.checkState(wallet.beAuthPrivateKey2);
     return new this.Client({
       baseUrl: this.baseUrl,
-      authKey: Bitcore_[this.coin].PrivateKey(wallet.beAuthPrivateKey2)
+      authKey: Astracore_[this.coin].PrivateKey(wallet.beAuthPrivateKey2),
     });
   }
 
   addAddresses(wallet, addresses, cb) {
     const client = this._getAuthClient(wallet);
 
-    const payload = _.map(addresses, a => {
+    const payload = _.map(addresses, (a) => {
       return {
-        address: a
+        address: a,
       };
     });
 
@@ -98,13 +98,13 @@ export class V8 {
     client
       .importAddresses({
         payload,
-        pubKey: wallet.beAuthPublicKey2
+        pubKey: wallet.beAuthPublicKey2,
       })
-      .then(ret => {
+      .then((ret) => {
         console.timeEnd(k);
         return cb(null, ret);
       })
-      .catch(err => {
+      .catch((err) => {
         return cb(err);
       });
   }
@@ -117,14 +117,14 @@ export class V8 {
     const client = this._getAuthClient(wallet);
     const payload = {
       name: wallet.id,
-      pubKey: wallet.beAuthPublicKey2
+      pubKey: wallet.beAuthPublicKey2,
     };
     client
       .register({
         authKey: wallet.beAuthPrivateKey2,
-        payload
+        payload,
       })
-      .then(ret => {
+      .then((ret) => {
         return cb(null, ret);
       })
       .catch(cb);
@@ -135,7 +135,7 @@ export class V8 {
     const { tokenAddress, multisigContractAddress } = wallet;
     client
       .getBalance({ pubKey: wallet.beAuthPublicKey2, payload: {}, tokenAddress, multisigContractAddress })
-      .then(ret => {
+      .then((ret) => {
         return cb(null, ret);
       })
       .catch(cb);
@@ -148,10 +148,10 @@ export class V8 {
   _transformUtxos(unspent, bcheight) {
     $.checkState(bcheight > 0, 'No BC height passed to _transformUtxos');
     const ret = _.map(
-      _.reject(unspent, x => {
+      _.reject(unspent, (x) => {
         return x.spentHeight && x.spentHeight <= -3;
       }),
-      x => {
+      (x) => {
         const u = {
           address: x.address,
           satoshis: x.value,
@@ -160,7 +160,7 @@ export class V8 {
           txid: x.mintTxid,
           vout: x.mintIndex,
           locked: false,
-          confirmations: x.mintHeight > 0 && bcheight >= x.mintHeight ? bcheight - x.mintHeight + 1 : 0
+          confirmations: x.mintHeight > 0 && bcheight >= x.mintHeight ? bcheight - x.mintHeight + 1 : 0,
         };
 
         // v8 field name differences
@@ -183,7 +183,7 @@ export class V8 {
     console.time('V8getUtxos');
     client
       .getCoins({ pubKey: wallet.beAuthPublicKey2, payload: {} })
-      .then(unspent => {
+      .then((unspent) => {
         console.timeEnd('V8getUtxos');
         return cb(null, this._transformUtxos(unspent, height));
       })
@@ -196,7 +196,7 @@ export class V8 {
     console.time('V8getCoinsForTx');
     client
       .getCoinsForTx({ txId, payload: {} })
-      .then(coins => {
+      .then((coins) => {
         console.timeEnd('V8getCoinsForTx');
         return cb(null, coins);
       })
@@ -211,7 +211,7 @@ export class V8 {
     console.time('WalletCheck');
     client
       .getCheckData({ pubKey: wallet.beAuthPublicKey2, payload: {} })
-      .then(checkInfo => {
+      .then((checkInfo) => {
         console.timeEnd('WalletCheck');
         return cb(null, checkInfo);
       })
@@ -225,19 +225,19 @@ export class V8 {
     const payload = {
       rawTx,
       network: this.v8network,
-      chain: this.chain
+      chain: this.chain,
     };
 
     const client = this._getClient();
     client
       .broadcast({ payload })
-      .then(ret => {
+      .then((ret) => {
         if (!ret.txid) {
           return cb(new Error('Error broadcasting'));
         }
         return cb(null, ret.txid);
       })
-      .catch(err => {
+      .catch((err) => {
         if (count > 3) {
           logger.error('FINAL Broadcast error:', err);
           return cb(err);
@@ -258,13 +258,13 @@ export class V8 {
     const client = this._getClient();
     client
       .getTx({ txid })
-      .then(tx => {
+      .then((tx) => {
         if (!tx || _.isEmpty(tx)) {
           return cb();
         }
         return cb(null, tx);
       })
-      .catch(err => {
+      .catch((err) => {
         // The TX was not found
         if (err.statusCode == '404') {
           return cb();
@@ -280,7 +280,7 @@ export class V8 {
 
     client
       .getAddressTxos({ address, unspent: true })
-      .then(utxos => {
+      .then((utxos) => {
         return cb(null, this._transformUtxos(utxos, height));
       })
       .catch(cb);
@@ -304,13 +304,13 @@ export class V8 {
       payload: {},
       startBlock: undefined,
       tokenAddress: wallet.tokenAddress,
-      multisigContractAddress: wallet.multisigContractAddress
+      multisigContractAddress: wallet.multisigContractAddress,
     };
 
     if (_.isNumber(startBlock)) opts.startBlock = startBlock;
 
     const txStream = client.listTransactions(opts);
-    txStream.on('data', raw => {
+    txStream.on('data', (raw) => {
       acum = acum + raw.toString();
     });
 
@@ -321,7 +321,7 @@ export class V8 {
 
       const txs = [],
         unconf = [];
-      _.each(acum.split(/\r?\n/), rawTx => {
+      _.each(acum.split(/\r?\n/), (rawTx) => {
         if (!rawTx) return;
 
         let tx;
@@ -342,7 +342,7 @@ export class V8 {
       return cb(null, _.flatten(_.orderBy(unconf, 'blockTime', 'desc').concat(txs.reverse())));
     });
 
-    txStream.on('error', e => {
+    txStream.on('error', (e) => {
       logger.error('v8 error:' + e);
       broken = true;
       return cb(e);
@@ -354,10 +354,10 @@ export class V8 {
     console.log('[v8.js.328:url:] CHECKING ADDRESS ACTIVITY', url); // TODO
     this.request
       .get(url, {})
-      .then(ret => {
+      .then((ret) => {
         return cb(null, ret !== '[]');
       })
-      .catch(err => {
+      .catch((err) => {
         return cb(err);
       });
   }
@@ -367,11 +367,11 @@ export class V8 {
     console.log('[v8.js.364:url:] CHECKING ADDRESS NONCE', url);
     this.request
       .get(url, {})
-      .then(ret => {
+      .then((ret) => {
         ret = JSON.parse(ret);
         return cb(null, ret.nonce);
       })
-      .catch(err => {
+      .catch((err) => {
         return cb(err);
       });
   }
@@ -381,11 +381,11 @@ export class V8 {
     console.log('[v8.js.378:url:] CHECKING GAS LIMIT', url);
     this.request
       .post(url, { body: opts, json: true })
-      .then(gasLimit => {
+      .then((gasLimit) => {
         gasLimit = JSON.parse(gasLimit);
         return cb(null, gasLimit);
       })
-      .catch(err => {
+      .catch((err) => {
         return cb(err);
       });
   }
@@ -395,11 +395,11 @@ export class V8 {
     console.log('[v8.js.378:url:] CHECKING CONTRACT INSTANTIATION INFO', url);
     this.request
       .get(url, {})
-      .then(contractInstantiationInfo => {
+      .then((contractInstantiationInfo) => {
         contractInstantiationInfo = JSON.parse(contractInstantiationInfo);
         return cb(null, contractInstantiationInfo);
       })
-      .catch(err => {
+      .catch((err) => {
         return cb(err);
       });
   }
@@ -409,11 +409,11 @@ export class V8 {
     console.log('[v8.js.378:url:] CHECKING CONTRACT INFO', url);
     this.request
       .get(url, {})
-      .then(contractInfo => {
+      .then((contractInfo) => {
         contractInfo = JSON.parse(contractInfo);
         return cb(null, contractInfo);
       })
-      .catch(err => {
+      .catch((err) => {
         return cb(err);
       });
   }
@@ -423,11 +423,11 @@ export class V8 {
     console.log('[v8.js.378:url:] CHECKING CONTRACT TXPS INFO', url);
     this.request
       .get(url, {})
-      .then(multisigTxpsInfo => {
+      .then((multisigTxpsInfo) => {
         multisigTxpsInfo = JSON.parse(multisigTxpsInfo);
         return cb(null, multisigTxpsInfo);
       })
-      .catch(err => {
+      .catch((err) => {
         return cb(err);
       });
   }
@@ -442,7 +442,7 @@ export class V8 {
         const url = this.baseUrl + '/fee/' + x;
         this.request
           .get(url, {})
-          .then(ret => {
+          .then((ret) => {
             try {
               ret = JSON.parse(ret);
 
@@ -459,11 +459,11 @@ export class V8 {
 
             return icb();
           })
-          .catch(err => {
+          .catch((err) => {
             return icb(err);
           });
       },
-      err => {
+      (err) => {
         if (err) {
           return cb(err);
         }
@@ -478,7 +478,7 @@ export class V8 {
 
     this.request
       .get(url, {})
-      .then(ret => {
+      .then((ret) => {
         try {
           ret = JSON.parse(ret);
           return cb(null, ret.height, ret.hash);
@@ -493,7 +493,7 @@ export class V8 {
     const url = this.baseUrl + '/tx/?blockHash=' + blockHash;
     this.request
       .get(url, {})
-      .then(ret => {
+      .then((ret) => {
         try {
           ret = JSON.parse(ret);
           const res = _.map(ret, 'txid');
@@ -512,12 +512,12 @@ export class V8 {
 
     const blockSocket = io.connect(this.host, { transports: ['websocket'] });
 
-    const getAuthPayload = host => {
+    const getAuthPayload = (host) => {
       const authKey = config.blockchainExplorerOpts.socketApiKey;
 
       if (!authKey) throw new Error('provide authKey');
 
-      const authKeyObj = new Bitcore.PrivateKey(authKey);
+      const authKeyObj = new Astracore.PrivateKey(authKey);
       const pubKey = authKeyObj.toPublicKey().toString();
       const authClient = new Client({ baseUrl: host, authKey: authKeyObj });
       const payload = { method: 'socket', url: host };
@@ -534,7 +534,7 @@ export class V8 {
       logger.error(`Error connecting to ${this.getConnectionInfo()}`);
     });
 
-    blockSocket.on('block', data => {
+    blockSocket.on('block', (data) => {
       return callbacks.onBlock(data.hash);
     });
 
@@ -547,11 +547,11 @@ export class V8 {
       logger.error(`Error connecting to ${this.getConnectionInfo()}  ${this.chain}/${this.v8network}`);
     });
 
-    walletsSocket.on('failure', err => {
+    walletsSocket.on('failure', (err) => {
       logger.error(`Error joining room ${err.message} ${this.chain}/${this.v8network}`);
     });
 
-    walletsSocket.on('coin', data => {
+    walletsSocket.on('coin', (data) => {
       if (!data || !data.coin) return;
 
       const notification = ChainService.onCoin(this.coin, data.coin);
@@ -560,7 +560,7 @@ export class V8 {
       return callbacks.onIncomingPayments(notification);
     });
 
-    walletsSocket.on('tx', data => {
+    walletsSocket.on('tx', (data) => {
       if (!data || !data.tx) return;
 
       const notification = ChainService.onTx(this.coin, data.tx);

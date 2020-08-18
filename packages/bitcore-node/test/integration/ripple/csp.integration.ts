@@ -40,7 +40,7 @@ describe('Ripple Api', () => {
       previousBlockHash: '64bfb3eda276ae4ae5b64d9e36c9c0b629bc767fb7ae66f9d55d2c5c8103a929',
       nextBlockHash: '',
       size: 264,
-      processed: true
+      processed: true,
     });
 
     const tip = await XRP.getLocalTip({ chain, network });
@@ -49,19 +49,19 @@ describe('Ripple Api', () => {
     expect(tip.hash).to.eq('528f01c17829622ed6a4af51b3b3f6c062f304fa60e66499c9cbb8622c8407f7');
   });
 
-  it('should transform a ripple rpc response into a bitcore transaction', async () => {
+  it('should transform a ripple rpc response into a astracore transaction', async () => {
     const txs = (RippleTxs as any) as Array<FormattedTransactionType>;
     for (const tx of txs) {
-      const bitcoreTx = (await XRP.transform(tx, 'mainnet')) as IXrpTransaction;
-      expect(bitcoreTx).to.have.property('chain');
-      expect(tx.address).to.eq(bitcoreTx.from);
-      expect(tx.outcome.ledgerVersion).to.eq(bitcoreTx.blockHeight);
-      expect(tx.outcome.fee).to.eq((bitcoreTx.fee / 1e6).toString());
-      expect(Number(tx.outcome.balanceChanges[bitcoreTx.from][0].value)).to.be.lt(0);
+      const astracoreTx = (await XRP.transform(tx, 'mainnet')) as IXrpTransaction;
+      expect(astracoreTx).to.have.property('chain');
+      expect(tx.address).to.eq(astracoreTx.from);
+      expect(tx.outcome.ledgerVersion).to.eq(astracoreTx.blockHeight);
+      expect(tx.outcome.fee).to.eq((astracoreTx.fee / 1e6).toString());
+      expect(Number(tx.outcome.balanceChanges[astracoreTx.from][0].value)).to.be.lt(0);
       if (tx.outcome.deliveredAmount) {
-        expect(Object.keys(tx.outcome.balanceChanges)).to.contain(bitcoreTx.to!);
-        expect(tx.outcome.deliveredAmount!.value).to.eq((bitcoreTx.value / 1e6).toString());
-        expect(Number(tx.outcome.balanceChanges[bitcoreTx.to!][0].value)).to.be.gt(0);
+        expect(Object.keys(tx.outcome.balanceChanges)).to.contain(astracoreTx.to!);
+        expect(tx.outcome.deliveredAmount!.value).to.eq((astracoreTx.value / 1e6).toString());
+        expect(Number(tx.outcome.balanceChanges[astracoreTx.to!][0].value)).to.be.gt(0);
       }
     }
   });
@@ -78,12 +78,12 @@ describe('Ripple Api', () => {
       network,
       wallet,
       address,
-      processed: true
+      processed: true,
     });
     for (const tx of txs) {
-      const bitcoreTx = (await XRP.transform(tx, network)) as IXrpTransaction;
-      const bitcoreCoins = XRP.transformToCoins(tx, network);
-      const { transaction, coins } = await XRP.tag(chain, network, bitcoreTx, bitcoreCoins);
+      const astracoreTx = (await XRP.transform(tx, network)) as IXrpTransaction;
+      const astracoreCoins = XRP.transformToCoins(tx, network);
+      const { transaction, coins } = await XRP.tag(chain, network, astracoreTx, astracoreCoins);
       expect(transaction.wallets.length).eq(1);
       expect(transaction.wallets[0].equals(wallet));
       let hasACoin = false;
@@ -109,7 +109,7 @@ describe('Ripple Api', () => {
       network,
       wallet,
       address,
-      processed: true
+      processed: true,
     });
 
     const txs = (RippleTxs as any) as Array<FormattedTransactionType>;
@@ -117,9 +117,9 @@ describe('Ripple Api', () => {
     const blockCoins = new Array<IXrpCoin>();
 
     for (const tx of txs) {
-      const bitcoreTx = XRP.transform(tx, network) as IXrpTransaction;
-      const bitcoreCoins = XRP.transformToCoins(tx, network);
-      const { transaction, coins } = await XRP.tag(chain, network, bitcoreTx, bitcoreCoins);
+      const astracoreTx = XRP.transform(tx, network) as IXrpTransaction;
+      const astracoreCoins = XRP.transformToCoins(tx, network);
+      const { transaction, coins } = await XRP.tag(chain, network, astracoreTx, astracoreCoins);
       blockTxs.push(transaction);
       blockCoins.push(...coins);
     }
@@ -128,7 +128,7 @@ describe('Ripple Api', () => {
       coins: blockCoins,
       chain,
       network,
-      initialSyncComplete: false
+      initialSyncComplete: false,
     });
     const walletTxs = await XrpTransactionStorage.collection.find({ chain, network, wallets: wallet }).toArray();
 

@@ -11,8 +11,8 @@ import { BitcoinBlockType, BitcoinHeaderObj, BitcoinTransaction } from '../../ty
 import { wait } from '../../utils/wait';
 
 export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
-  protected bitcoreLib: any;
-  protected bitcoreP2p: any;
+  protected astracoreLib: any;
+  protected astracoreP2p: any;
   protected chainConfig: any;
   protected messages: any;
   protected connectInterval?: NodeJS.Timer;
@@ -28,33 +28,33 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
     this.blockModel = blockModel;
     this.chain = chain;
     this.network = network;
-    this.bitcoreLib = Libs.get(chain).lib;
-    this.bitcoreP2p = Libs.get(chain).p2p;
+    this.astracoreLib = Libs.get(chain).lib;
+    this.astracoreP2p = Libs.get(chain).p2p;
     this.chainConfig = chainConfig;
     this.events = new EventEmitter();
     this.isSyncing = false;
     this.initialSyncComplete = false;
     this.invCache = {};
     this.invCacheLimits = {
-      [this.bitcoreP2p.Inventory.TYPE.BLOCK]: 100,
-      [this.bitcoreP2p.Inventory.TYPE.TX]: 100000
+      [this.astracoreP2p.Inventory.TYPE.BLOCK]: 100,
+      [this.astracoreP2p.Inventory.TYPE.TX]: 100000,
     };
-    this.messages = new this.bitcoreP2p.Messages({
-      network: this.bitcoreLib.Networks.get(this.network)
+    this.messages = new this.astracoreP2p.Messages({
+      network: this.astracoreLib.Networks.get(this.network),
     });
-    this.pool = new this.bitcoreP2p.Pool({
-      addrs: this.chainConfig.trustedPeers.map(peer => {
+    this.pool = new this.astracoreP2p.Pool({
+      addrs: this.chainConfig.trustedPeers.map((peer) => {
         return {
           ip: {
-            v4: peer.host
+            v4: peer.host,
           },
-          port: peer.port
+          port: peer.port,
         };
       }),
       dnsSeed: false,
       listenAddr: false,
       network: this.network,
-      messages: this.messages
+      messages: this.messages,
     });
   }
 
@@ -76,7 +76,7 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
   }
 
   setupListeners() {
-    this.pool.on('peerready', peer => {
+    this.pool.on('peerready', (peer) => {
       logger.info(
         `${timestamp()} | Connected to peer: ${peer.host}:${peer.port.toString().padEnd(5)} | Chain: ${
           this.chain
@@ -84,7 +84,7 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
       );
     });
 
-    this.pool.on('peerconnect', peer => {
+    this.pool.on('peerconnect', (peer) => {
       logger.info(
         `${timestamp()} | Connected to peer: ${peer.host}:${peer.port.toString().padEnd(5)} | Chain: ${
           this.chain
@@ -92,7 +92,7 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
       );
     });
 
-    this.pool.on('peerdisconnect', peer => {
+    this.pool.on('peerdisconnect', (peer) => {
       logger.warn(
         `${timestamp()} | Not connected to peer: ${peer.host}:${peer.port.toString().padEnd(5)} | Chain: ${
           this.chain
@@ -106,10 +106,10 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
         peer: `${peer.host}:${peer.port}`,
         chain: this.chain,
         network: this.network,
-        hash
+        hash,
       });
-      if (this.isSyncingNode && !this.isCachedInv(this.bitcoreP2p.Inventory.TYPE.TX, hash)) {
-        this.cacheInv(this.bitcoreP2p.Inventory.TYPE.TX, hash);
+      if (this.isSyncingNode && !this.isCachedInv(this.astracoreP2p.Inventory.TYPE.TX, hash)) {
+        this.cacheInv(this.astracoreP2p.Inventory.TYPE.TX, hash);
         await this.processTransaction(message.transaction);
         this.events.emit('transaction', message.transaction);
       }
@@ -122,13 +122,15 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
         peer: `${peer.host}:${peer.port}`,
         chain: this.chain,
         network: this.network,
-        hash
+        hash,
       });
 
-      const blockInCache = this.isCachedInv(this.bitcoreP2p.Inventory.TYPE.BLOCK, hash);
+      const blockInCache = this.isCachedInv(this.astracoreP2p.Inventory.TYPE.BLOCK, hash);
       if (!blockInCache) {
-        block.transactions.forEach(transaction => this.cacheInv(this.bitcoreP2p.Inventory.TYPE.TX, transaction.hash));
-        this.cacheInv(this.bitcoreP2p.Inventory.TYPE.BLOCK, hash);
+        block.transactions.forEach((transaction) =>
+          this.cacheInv(this.astracoreP2p.Inventory.TYPE.TX, transaction.hash)
+        );
+        this.cacheInv(this.astracoreP2p.Inventory.TYPE.BLOCK, hash);
       }
       if (this.isSyncingNode && (!blockInCache || this.isSyncing)) {
         this.events.emit(hash, message.block);
@@ -144,18 +146,15 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
         peer: `${peer.host}:${peer.port}`,
         chain: this.chain,
         network: this.network,
-        count: message.headers.length
+        count: message.headers.length,
       });
       this.events.emit('headers', message.headers);
     });
 
     this.pool.on('peerinv', (peer, message) => {
       if (this.isSyncingNode) {
-        const filtered = message.inventory.filter(inv => {
-          const hash = this.bitcoreLib.encoding
-            .BufferReader(inv.hash)
-            .readReverse()
-            .toString('hex');
+        const filtered = message.inventory.filter((inv) => {
+          const hash = this.astracoreLib.encoding.BufferReader(inv.hash).readReverse().toString('hex');
           return !this.isCachedInv(inv.type, hash);
         });
 
@@ -170,7 +169,7 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
     this.setupListeners();
     this.pool.connect();
     this.connectInterval = setInterval(this.pool.connect.bind(this.pool), 5000);
-    return new Promise<void>(resolve => {
+    return new Promise<void>((resolve) => {
       this.pool.once('peerready', () => resolve());
     });
   }
@@ -185,8 +184,8 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
 
   public async getHeaders(candidateHashes: string[]): Promise<BitcoinHeaderObj[]> {
     let received = false;
-    return new Promise<BitcoinHeaderObj[]>(async resolve => {
-      this.events.once('headers', headers => {
+    return new Promise<BitcoinHeaderObj[]>(async (resolve) => {
+      this.events.once('headers', (headers) => {
         received = true;
         resolve(headers);
       });
@@ -200,7 +199,7 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
   public async getBlock(hash: string) {
     logger.debug('Getting block, hash:', hash);
     let received = false;
-    return new Promise<BitcoinBlockType>(async resolve => {
+    return new Promise<BitcoinBlockType>(async (resolve) => {
       this.events.once(hash, (block: BitcoinBlockType) => {
         logger.debug('Received block, hash:', hash);
         received = true;
@@ -230,7 +229,7 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
       forkHeight: this.chainConfig.forkHeight,
       parentChain: this.chainConfig.parentChain,
       initialSyncComplete: this.initialSyncComplete,
-      block
+      block,
     });
   }
 
@@ -244,12 +243,12 @@ export class BitcoinP2PWorker extends BaseP2PWorker<IBtcBlock> {
       mempoolTime: now,
       blockTime: now,
       blockTimeNormalized: now,
-      initialSyncComplete: true
+      initialSyncComplete: true,
     });
   }
 
   async syncDone() {
-    return new Promise(resolve => this.events.once('SYNCDONE', resolve));
+    return new Promise((resolve) => this.events.once('SYNCDONE', resolve));
   }
 
   async sync() {

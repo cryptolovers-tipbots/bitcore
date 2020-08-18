@@ -156,7 +156,7 @@ export class TxProposal {
     x.message = opts.message;
     x.payProUrl = opts.payProUrl;
     x.changeAddress = opts.changeAddress;
-    x.outputs = _.map(opts.outputs, output => {
+    x.outputs = _.map(opts.outputs, (output) => {
       return _.pick(output, ['amount', 'toAddress', 'message', 'data', 'gasLimit', 'script']);
     });
     x.outputOrder = _.range(x.outputs.length + 1);
@@ -232,7 +232,7 @@ export class TxProposal {
     x.txid = obj.txid;
     x.broadcastedOn = obj.broadcastedOn;
     x.inputPaths = obj.inputPaths;
-    x.actions = _.map(obj.actions, action => {
+    x.actions = _.map(obj.actions, (action) => {
       return TxProposalAction.fromObj(action);
     });
     x.outputOrder = obj.outputOrder;
@@ -293,20 +293,20 @@ export class TxProposal {
   }
 
   getCurrentSignatures() {
-    const acceptedActions = _.filter(this.actions, a => {
+    const acceptedActions = _.filter(this.actions, (a) => {
       return a.type == 'accept';
     });
 
-    return _.map(acceptedActions, x => {
+    return _.map(acceptedActions, (x) => {
       return {
         signatures: x.signatures,
-        xpub: x.xpub
+        xpub: x.xpub,
       };
     });
   }
 
   getRawTx() {
-    const t = ChainService.getBitcoreTx(this);
+    const t = ChainService.getAstracoreTx(this);
     return t.uncheckedSerialize();
   }
 
@@ -335,7 +335,7 @@ export class TxProposal {
    */
   getApprovers() {
     return _.map(
-      _.filter(this.actions, a => {
+      _.filter(this.actions, (a) => {
         return a.type == 'accept';
       }),
       'copayerId'
@@ -350,7 +350,7 @@ export class TxProposal {
    */
   getActionBy(copayerId) {
     return _.find(this.actions, {
-      copayerId
+      copayerId,
     });
   }
 
@@ -360,7 +360,7 @@ export class TxProposal {
       type,
       signatures,
       xpub,
-      comment
+      comment,
     });
     this.actions.push(action);
     this._updateStatus();
@@ -369,8 +369,8 @@ export class TxProposal {
   sign(copayerId, signatures, xpub) {
     try {
       // Tests signatures are OK
-      const tx = ChainService.getBitcoreTx(this);
-      ChainService.addSignaturesToBitcoreTx(
+      const tx = ChainService.getAstracoreTx(this);
+      ChainService.addSignaturesToAstracoreTx(
         this.coin,
         tx,
         this.inputs,

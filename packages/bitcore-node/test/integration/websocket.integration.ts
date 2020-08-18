@@ -7,23 +7,20 @@ import config from '../../src/config';
 import { Event } from '../../src/services/event';
 import { Api } from '../../src/services/api';
 import { BitcoinP2PWorker } from '../../src/modules/bitcoin/p2p';
-const { PrivateKey } = require('bitcore-lib');
+const { PrivateKey } = require('astracore-lib');
 
 const chain = 'BTC';
 const network = 'regtest';
 const chainConfig = config.chains[chain][network];
 const creds = chainConfig.rpc;
 const rpc = new AsyncRPC(creds.username, creds.password, creds.host, creds.port);
-import { Client } from 'bitcore-client';
+import { Client } from 'astracore-client';
 import { WalletStorage } from '../../src/models/wallet';
 import { WalletAddressStorage } from '../../src/models/walletAddress';
 import { Socket } from '../../src/services/socket';
 
 function getSocket() {
-  const socket = io.connect(
-    'http://localhost:3000',
-    { transports: ['websocket'] }
-  );
+  const socket = io.connect('http://localhost:3000', { transports: ['websocket'] });
   return socket;
 }
 
@@ -36,7 +33,7 @@ const pubKey = authKey.publicKey.toString('hex');
 const address = '2MuYKLUaKCenkEpwPkWUwYpBoDBNA2dgY3t';
 const sandbox = sinon.createSandbox();
 
-describe('Websockets', function() {
+describe('Websockets', function () {
   this.timeout(180000);
 
   before(async () => {
@@ -50,7 +47,7 @@ describe('Websockets', function() {
       name: 'WalletSocketTest',
       singleAddress: false,
       pubKey,
-      path: ''
+      path: '',
     });
 
     await WalletAddressStorage.collection.insertOne({
@@ -58,7 +55,7 @@ describe('Websockets', function() {
       chain,
       network,
       processed: true,
-      wallet: inserted.insertedId
+      wallet: inserted.insertedId,
     });
   });
 
@@ -69,7 +66,7 @@ describe('Websockets', function() {
 
   beforeEach(async () => {
     socket = getSocket();
-    const connected = new Promise(r => {
+    const connected = new Promise((r) => {
       socket.on('connect', () => {
         console.log('Socket connected');
         r();
@@ -79,7 +76,7 @@ describe('Websockets', function() {
     p2pWorker = new BitcoinP2PWorker({
       chain,
       network,
-      chainConfig
+      chainConfig,
     });
     p2pWorker.start();
     if (p2pWorker.isSyncing) {
@@ -103,7 +100,7 @@ describe('Websockets', function() {
     let hasSeenBlockEvent = false;
     let hasSeenCoinEvent = false;
     const anAddress = await rpc.getnewaddress('');
-    let sawEvents = new Promise(resolve => {
+    let sawEvents = new Promise((resolve) => {
       socket.on('block', () => {
         hasSeenBlockEvent = true;
         console.log('Block event received');
@@ -151,7 +148,7 @@ describe('Websockets', function() {
 
     let hasSeenTxEvent = false;
     let hasSeenCoinEvent = false;
-    let sawEvents = new Promise(resolve => {
+    let sawEvents = new Promise((resolve) => {
       socket.on('tx', () => {
         hasSeenTxEvent = true;
         console.log('Transaction event received');
@@ -180,7 +177,7 @@ describe('Websockets', function() {
     const authPayload = {
       pubKey: bwsKey,
       message: authClient.getMessage(payload),
-      signature: authClient.sign(payload)
+      signature: authClient.sign(payload),
     };
 
     const chain = 'BTC';
@@ -190,7 +187,7 @@ describe('Websockets', function() {
 
     let hasSeenTxEvent = false;
     let hasSeenCoinEvent = false;
-    let sawEvents = new Promise(resolve => {
+    let sawEvents = new Promise((resolve) => {
       socket.on('tx', () => {
         hasSeenTxEvent = true;
         console.log('Transaction event received');
@@ -225,8 +222,8 @@ describe('Websockets', function() {
     const chain = 'BTC';
     const network = 'regtest';
     const roomPrefix = `/${chain}/${network}/`;
-    let failed = new Promise(resolve => {
-      socket.on('failure', e => {
+    let failed = new Promise((resolve) => {
+      socket.on('failure', (e) => {
         expect(e.message).to.include('Authentication failed');
         resolve();
       });
@@ -245,8 +242,8 @@ describe('Websockets', function() {
     const chain = 'BTC';
     const network = 'regtest';
     const roomPrefix = `/${chain}/${network}/`;
-    let failed = new Promise(resolve => {
-      socket.on('failure', e => {
+    let failed = new Promise((resolve) => {
+      socket.on('failure', (e) => {
         expect(e.message).to.include('Authentication failed');
         resolve();
       });

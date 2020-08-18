@@ -1,9 +1,9 @@
 'use strict';
 
-var bitcore = require('bitcore-lib');
+var astracore = require('astracore-lib');
 var BloomFilter = require('bloom-filter');
-var BufferReader = bitcore.encoding.BufferReader;
-var BufferWriter = bitcore.encoding.BufferWriter;
+var BufferReader = astracore.encoding.BufferReader;
+var BufferWriter = astracore.encoding.BufferWriter;
 
 /**
  * A constructor for Bloom Filters
@@ -15,7 +15,7 @@ BloomFilter.fromBuffer = function fromBuffer(payload) {
   var parser = new BufferReader(payload);
   var length = parser.readVarintNum();
   obj.vData = [];
-  for(var i = 0; i < length; i++) {
+  for (var i = 0; i < length; i++) {
     obj.vData.push(parser.readUInt8());
   }
   obj.nHashFuncs = parser.readUInt32LE();
@@ -30,7 +30,7 @@ BloomFilter.fromBuffer = function fromBuffer(payload) {
 BloomFilter.prototype.toBuffer = function toBuffer() {
   var bw = new BufferWriter();
   bw.writeVarintNum(this.vData.length);
-  for(var i = 0; i < this.vData.length; i++) {
+  for (var i = 0; i < this.vData.length; i++) {
     bw.writeUInt8(this.vData[i]);
   }
   bw.writeUInt32LE(this.nHashFuncs);

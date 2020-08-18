@@ -12,7 +12,7 @@ bitcoin:12A1MyfXbW6RhdRAZEqofac5jCQQjwEPBu?amount=1.2&message=Payment&label=Sato
 
 ## URI Validation
 
-The main use that we expect you'll have for the `URI` class in bitcore is validating and parsing bitcoin URIs. A `URI` instance exposes the address as a bitcore `Address` object and the amount in Satoshis, if present.
+The main use that we expect you'll have for the `URI` class in astracore is validating and parsing bitcoin URIs. A `URI` instance exposes the address as a astracore `Address` object and the amount in Satoshis, if present.
 
 The code for validating URIs looks like this:
 
@@ -38,8 +38,8 @@ The code for creating an URI from an Object looks like this:
 ```javascript
 var uriString = new URI({
   address: '12A1MyfXbW6RhdRAZEqofac5jCQQjwEPBu',
-  amount : 10000, // in satoshis
-  message: 'My payment request'
+  amount: 10000, // in satoshis
+  message: 'My payment request',
 });
 var uriString = uri.toString();
 ```

@@ -2,20 +2,20 @@ import * as CWC from 'crypto-wallet-core';
 import _ from 'lodash';
 
 const $ = require('preconditions').singleton();
-const bitcore = require('bitcore-lib');
-const crypto = bitcore.crypto;
+const astracore = require('astracore-lib');
+const crypto = astracore.crypto;
 const secp256k1 = require('secp256k1');
-const Bitcore = require('bitcore-lib');
-const Bitcore_ = {
-  btc: Bitcore,
-  bch: require('bitcore-lib-cash')
+const Astracore = require('astracore-lib');
+const Astracore_ = {
+  btc: Astracore,
+  bch: require('astracore-lib-cash'),
 };
 
 export class Utils {
   static getMissingFields(obj, args) {
     args = [].concat(args);
     if (!_.isObject(obj)) return args;
-    const missing = _.filter(args, arg => {
+    const missing = _.filter(args, (arg) => {
       return !obj.hasOwnProperty(arg);
     });
     return missing;
@@ -38,7 +38,7 @@ export class Utils {
     const buf = new Buffer(text);
     let ret = crypto.Hash.sha256sha256(buf);
     if (!noReverse) {
-      ret = new bitcore.encoding.BufferReader(ret).readReverse();
+      ret = new astracore.encoding.BufferReader(ret).readReverse();
     }
     return ret;
   }
@@ -99,7 +99,7 @@ export class Utils {
       units[currency] = {
         toSatoshis: currencyConfig.toSatoshis,
         maxDecimals: currencyConfig.short.maxDecimals,
-        minDecimals: currencyConfig.short.minDecimals
+        minDecimals: currencyConfig.short.minDecimals,
       };
       return units;
     }, {} as { [currency: string]: { toSatoshis: number; maxDecimals: number; minDecimals: number } });
@@ -136,14 +136,14 @@ export class Utils {
     return (
       Utils.formatAmount(amount, 'btc', {
         minDecimals: 8,
-        maxDecimals: 8
+        maxDecimals: 8,
       }) + 'btc'
     );
   }
 
   static formatUtxos(utxos) {
     if (_.isEmpty(utxos)) return 'none';
-    return _.map([].concat(utxos), i => {
+    return _.map([].concat(utxos), (i) => {
       const amount = Utils.formatAmountInBtc(i.satoshis);
       const confirmations = i.confirmations ? i.confirmations + 'c' : 'u';
       return amount + '/' + confirmations;
@@ -232,11 +232,11 @@ export class Utils {
 
   static getAddressCoin(address) {
     try {
-      new Bitcore_['btc'].Address(address);
+      new Astracore_['btc'].Address(address);
       return 'btc';
     } catch (e) {
       try {
-        new Bitcore_['bch'].Address(address);
+        new Astracore_['bch'].Address(address);
         return 'bch';
       } catch (e) {
         return;
@@ -246,10 +246,10 @@ export class Utils {
 
   static translateAddress(address, coin) {
     const origCoin = Utils.getAddressCoin(address);
-    const origAddress = new Bitcore_[origCoin].Address(address);
+    const origAddress = new Astracore_[origCoin].Address(address);
     const origObj = origAddress.toObject();
 
-    const result = Bitcore_[coin].Address.fromObject(origObj);
+    const result = Astracore_[coin].Address.fromObject(origObj);
     return coin == 'bch' ? result.toLegacyAddress() : result.toString();
   }
 }

@@ -2,7 +2,7 @@ import * as _ from 'lodash';
 import { Key } from '../../derivation';
 
 export class BTCTxProvider {
-  lib = require('bitcore-lib');
+  lib = require('astracore-lib');
 
   selectCoins(
     recipients: Array<{ amount: number }>,
@@ -15,7 +15,7 @@ export class BTCTxProvider {
     }>,
     fee: number
   ) {
-    utxos = utxos.sort(function(a, b) {
+    utxos = utxos.sort(function (a, b) {
       return a.mintHeight - b.mintHeight;
     });
 
@@ -34,11 +34,11 @@ export class BTCTxProvider {
   create({ recipients, utxos = [], change, wallet, feeRate, fee }) {
     change = change || wallet.deriveAddress(wallet.addressIndex, true);
     const filteredUtxos = this.selectCoins(recipients, utxos, fee);
-    const btcUtxos = filteredUtxos.map(utxo => {
+    const btcUtxos = filteredUtxos.map((utxo) => {
       const btcUtxo = Object.assign({}, utxo, {
         amount: utxo.value / 1e8,
         txid: utxo.mintTxid,
-        outputIndex: utxo.mintIndex
+        outputIndex: utxo.mintIndex,
       });
       return new this.lib.Transaction.UnspentOutput(btcUtxo);
     });
@@ -67,33 +67,33 @@ export class BTCTxProvider {
   }
 
   getHash(params: { tx: string }) {
-    const bitcoreTx = new this.lib.Transaction(params.tx);
-    return bitcoreTx.hash;
+    const astracoreTx = new this.lib.Transaction(params.tx);
+    return astracoreTx.hash;
   }
 
   sign(params: { tx: string; keys: Array<Key>; utxos: any[]; pubkeys?: any[]; threshold?: number; opts: any }) {
     const { tx, keys, pubkeys, threshold, opts } = params;
     let utxos = params.utxos || [];
     let inputAddresses = this.getSigningAddresses({ tx, utxos });
-    let bitcoreTx = new this.lib.Transaction(tx);
+    let astracoreTx = new this.lib.Transaction(tx);
     let applicableUtxos = this.getRelatedUtxos({
-      outputs: bitcoreTx.inputs,
-      utxos
+      outputs: astracoreTx.inputs,
+      utxos,
     });
-    bitcoreTx.associateInputs(applicableUtxos, pubkeys, threshold, opts);
-    const privKeys = _.uniq(keys.map(key => key.privKey.toString()));
-    const signedTx = bitcoreTx.sign(privKeys).toString();
+    astracoreTx.associateInputs(applicableUtxos, pubkeys, threshold, opts);
+    const privKeys = _.uniq(keys.map((key) => key.privKey.toString()));
+    const signedTx = astracoreTx.sign(privKeys).toString();
     return signedTx;
   }
 
   getRelatedUtxos({ outputs, utxos }) {
-    let txids = outputs.map(output => output.toObject().prevTxId);
-    let applicableUtxos = utxos.filter(utxo => txids.includes(utxo.txid || utxo.mintTxid));
-    return applicableUtxos.map(utxo => {
+    let txids = outputs.map((output) => output.toObject().prevTxId);
+    let applicableUtxos = utxos.filter((utxo) => txids.includes(utxo.txid || utxo.mintTxid));
+    return applicableUtxos.map((utxo) => {
       const btcUtxo = Object.assign({}, utxo, {
         amount: utxo.value / Math.pow(10, 8),
         txid: utxo.mintTxid,
-        outputIndex: utxo.mintIndex
+        outputIndex: utxo.mintIndex,
       });
       return new this.lib.Transaction.UnspentOutput(btcUtxo);
     });
@@ -107,11 +107,11 @@ export class BTCTxProvider {
   }
 
   getSigningAddresses({ tx, utxos }): string[] {
-    let bitcoreTx = new this.lib.Transaction(tx);
+    let astracoreTx = new this.lib.Transaction(tx);
     let applicableUtxos = this.getRelatedUtxos({
-      outputs: bitcoreTx.inputs,
-      utxos
+      outputs: astracoreTx.inputs,
+      utxos,
     });
-    return applicableUtxos.map(utxo => utxo.address);
+    return applicableUtxos.map((utxo) => utxo.address);
   }
 }

@@ -7,18 +7,18 @@ Represents a node from the p2p bitcoin cash network. The Peer class supports con
 The code to create a new peer looks like this:
 
 ```javascript
-var Peer = require('bitcore-p2p-cash').Peer;
+var Peer = require('astracore-p2p-cash').Peer;
 
 // default port
-var livenetPeer = new Peer({host: '5.9.85.34'});
-var testnetPeer = new Peer({host: '5.9.85.34', network: Networks.testnet});
+var livenetPeer = new Peer({ host: '5.9.85.34' });
+var testnetPeer = new Peer({ host: '5.9.85.34', network: Networks.testnet });
 
 // custom port
-var livenetPeer = new Peer({host: '5.9.85.34', port: 8334});
-var testnetPeer = new Peer({host: '5.9.85.34', port: 18334, network: Networks.testnet});
+var livenetPeer = new Peer({ host: '5.9.85.34', port: 8334 });
+var testnetPeer = new Peer({ host: '5.9.85.34', port: 18334, network: Networks.testnet });
 
 // use sock5 proxy (Tor)
-var peer = new Peer({host: '5.9.85.34'}).setProxy('localhost', 9050);
+var peer = new Peer({ host: '5.9.85.34' }).setProxy('localhost', 9050);
 ```
 
 ## States
@@ -33,16 +33,16 @@ A peer instance is always in one of the following states:
 You can subscribe to the change of those states as follows:
 
 ```javascript
-var Peer = require('bitcore-p2p-cash').Peer;
+var Peer = require('astracore-p2p-cash').Peer;
 
-var peer = new Peer({host: '5.9.85.34'});
+var peer = new Peer({ host: '5.9.85.34' });
 
-peer.on('ready', function() {
+peer.on('ready', function () {
   // peer info
   console.log(peer.version, peer.subversion, peer.bestHeight);
 });
 
-peer.on('disconnect', function() {
+peer.on('disconnect', function () {
   console.log('connection closed');
 });
 
@@ -54,19 +54,19 @@ peer.connect();
 Once connected, a peer instance can send and receive messages. Every time a message arrives it's emitted as a new event. Let's see an example of this:
 
 ```javascript
-var Peer = require('bitcore-p2p-cash').Peer;
-var peer = new Peer({host: '5.9.85.34'});
+var Peer = require('astracore-p2p-cash').Peer;
+var peer = new Peer({ host: '5.9.85.34' });
 
 // handle events
-peer.on('inv', function(message) {
+peer.on('inv', function (message) {
   // message.inventory[]
 });
 
-peer.on('tx', function(message) {
+peer.on('tx', function (message) {
   // message.transaction
 });
 
-peer.on('addr', function(message) {
+peer.on('addr', function (message) {
   // message.addresses[]
 });
 
@@ -80,18 +80,18 @@ In order to send messages the Peer class offers the `sendMessage(message)` metho
 An example for requesting other connected nodes to a peers looks like this:
 
 ```javascript
-var p2p = require('bitcore-p2p-cash')
+var p2p = require('astracore-p2p-cash');
 var Peer = p2p.Peer;
 var Messages = p2p.Messages;
-var peer = new Peer({host: '5.9.85.34'});
+var peer = new Peer({ host: '5.9.85.34' });
 
-peer.on('ready', function() {
+peer.on('ready', function () {
   var message = new Messages.GetAddresses();
   peer.sendMessage(message);
 });
 
-peer.on('addr', function(message) {
-  message.addresses.forEach(function(address) {
+peer.on('addr', function (message) {
+  message.addresses.forEach(function (address) {
     // do something
   });
 });

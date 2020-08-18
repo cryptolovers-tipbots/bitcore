@@ -1,8 +1,8 @@
-# Bitcore Lib
+# Astracore Lib
 
-[![NPM Package](https://img.shields.io/npm/v/bitcore-lib.svg?style=flat-square)](https://www.npmjs.org/package/bitcore-lib)
-[![Build Status](https://img.shields.io/travis/bitpay/bitcore-lib.svg?branch=master&style=flat-square)](https://travis-ci.org/bitpay/bitcore-lib)
-[![Coverage Status](https://img.shields.io/coveralls/bitpay/bitcore-lib.svg?style=flat-square)](https://coveralls.io/r/bitpay/bitcore-lib)
+[![NPM Package](https://img.shields.io/npm/v/astracore-lib.svg?style=flat-square)](https://www.npmjs.org/package/astracore-lib)
+[![Build Status](https://img.shields.io/travis/bitpay/astracore-lib.svg?branch=master&style=flat-square)](https://travis-ci.org/bitpay/astracore-lib)
+[![Coverage Status](https://img.shields.io/coveralls/bitpay/astracore-lib.svg?style=flat-square)](https://coveralls.io/r/bitpay/astracore-lib)
 
 **A pure and powerful JavaScript Bitcoin library.**
 
@@ -13,16 +13,16 @@ Bitcoin is a powerful new peer-to-peer platform for the next generation of finan
 ## Get Started
 
 ```sh
-npm install bitcore-lib
+npm install astracore-lib
 ```
 
 ```sh
-bower install bitcore-lib
+bower install astracore-lib
 ```
 
 ## Documentation
 
-The complete docs are hosted here: [bitcore documentation](https://github.com/bitpay/bitcore). There's also a [bitcore API reference](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-node/docs/api-documentation.md) available generated from the JSDocs of the project, where you'll find low-level details on each bitcore utility.
+The complete docs are hosted here: [astracore documentation](https://github.com/bitpay/astracore). There's also a [astracore API reference](https://github.com/bitpay/astracore/blob/master/packages/astracore-node/docs/api-documentation.md) available generated from the JSDocs of the project, where you'll find low-level details on each astracore utility.
 
 ## Examples
 
@@ -38,21 +38,21 @@ The complete docs are hosted here: [bitcore documentation](https://github.com/bi
 
 ## Building the Browser Bundle
 
-To build a bitcore-lib full bundle for the browser:
+To build a astracore-lib full bundle for the browser:
 
 ```sh
 gulp browser
 ```
 
-This will generate files named `bitcore-lib.js` and `bitcore-lib.min.js`.
+This will generate files named `astracore-lib.js` and `astracore-lib.min.js`.
 
-You can also use our pre-generated files, provided for each release along with a PGP signature by one of the project's maintainers. To get them, checkout the [releases](https://github.com/bitpay/bitcore/blob/master/packages/bitcore-lib/CHANGELOG.md).
+You can also use our pre-generated files, provided for each release along with a PGP signature by one of the project's maintainers. To get them, checkout the [releases](https://github.com/bitpay/astracore/blob/master/packages/astracore-lib/CHANGELOG.md).
 
 ## Development & Tests
 
 ```sh
-git clone https://github.com/bitpay/bitcore-lib
-cd bitcore-lib
+git clone https://github.com/bitpay/astracore-lib
+cd astracore-lib
 npm install
 ```
 
@@ -66,16 +66,16 @@ You can also run just the Node.js tests with `gulp test:node`, just the browser 
 
 ## Security
 
-We're using Bitcore in production, as are many others, but please use common sense when doing anything related to finances! We take no responsibility for your implementation decisions.
+We're using Astracore in production, as are many others, but please use common sense when doing anything related to finances! We take no responsibility for your implementation decisions.
 
 If you find a security issue, please email security@bitpay.com.
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/bitpay/bitcore/blob/master/Contributing.md) on the main bitcore repo for information about how to contribute.
+See [CONTRIBUTING.md](https://github.com/bitpay/astracore/blob/master/Contributing.md) on the main astracore repo for information about how to contribute.
 
 ## License
 
-Code released under [the MIT license](https://github.com/bitpay/bitcore/blob/master/LICENSE).
+Code released under [the MIT license](https://github.com/bitpay/astracore/blob/master/LICENSE).
 
-Copyright 2013-2019 BitPay, Inc. Bitcore is a trademark maintained by BitPay, Inc.
+Copyright 2013-2019 Astracore, Inc. Astracore is a trademark maintained by Astracore, Inc.

@@ -1,25 +1,23 @@
 'use strict';
 
-var bitcore = require('../..');
-var Random = bitcore.crypto.Random;
+var astracore = require('../..');
+var Random = astracore.crypto.Random;
 
-describe('Random', function() {
-
-  describe('@getRandomBuffer', function() {
-
-    it('should return a buffer', function() {
+describe('Random', function () {
+  describe('@getRandomBuffer', function () {
+    it('should return a buffer', function () {
       var bytes = Random.getRandomBuffer(8);
       bytes.length.should.equal(8);
       Buffer.isBuffer(bytes).should.equal(true);
     });
 
-    it('should not equate two 256 bit random buffers', function() {
+    it('should not equate two 256 bit random buffers', function () {
       var bytes1 = Random.getRandomBuffer(32);
       var bytes2 = Random.getRandomBuffer(32);
       bytes1.toString('hex').should.not.equal(bytes2.toString('hex'));
     });
 
-    it('should generate 100 8 byte buffers in a row that are not equal', function() {
+    it('should generate 100 8 byte buffers in a row that are not equal', function () {
       var hexs = [];
       for (var i = 0; i < 100; i++) {
         hexs[i] = Random.getRandomBuffer(8).toString('hex');
@@ -30,7 +28,5 @@ describe('Random', function() {
         }
       }
     });
-
   });
-
 });
